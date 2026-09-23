@@ -1529,340 +1529,214 @@
             }
         }
 
-        /* ═══════════════════════════════════════════════════════════
-           SMS PORTAL STYLES
-        ═══════════════════════════════════════════════════════════ */
-        #sms-portal { display:none; }
-        #sms-portal.active { display:block; }
-
-        .sp-shell { display:flex; width:100%; min-height:100vh; }
-        .sp-sidebar {
-            width:230px; min-width:230px; max-width:230px;
-            background:linear-gradient(180deg,#1A1A72 0%,#12123F 100%);
-            display:flex; flex-direction:column;
-            padding:0; flex-shrink:0;
-            position:sticky; top:0; height:100vh; overflow-y:auto;
-        }
-        .sp-sidebar-logo {
-            display:flex; align-items:center; gap:0.6rem;
-            padding:1.2rem 1.2rem 1rem;
-            border-bottom:1px solid rgba(255,255,255,0.1);
-            text-decoration:none;
-        }
-        .sp-sidebar-logo-text { font-family:'Space Grotesk',sans-serif; font-size:1.15rem; font-weight:700; color:#fff; }
-        .sp-sidebar-logo-text span { color:#66D12F; }
-        .sp-sidebar-sub { font-size:0.68rem; color:rgba(255,255,255,0.5); letter-spacing:1.5px; text-transform:uppercase; padding:0.5rem 1.2rem 0.7rem; }
-        .sp-nav-section { padding:0.3rem 0; }
-        .sp-nav-label { font-size:0.65rem; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:rgba(255,255,255,0.35); padding:0.6rem 1.2rem 0.3rem; }
-        .sp-nav-btn {
-            display:flex; align-items:center; gap:0.7rem;
-            padding:0.65rem 1.2rem; width:100%; border:none;
-            background:transparent; color:rgba(255,255,255,0.75);
-            font-family:'Outfit',sans-serif; font-size:0.88rem;
-            cursor:pointer; transition:all 0.2s; text-align:left;
-            border-radius:0;
-        }
-        .sp-nav-btn:hover { background:rgba(102,209,47,0.12); color:#fff; }
-        .sp-nav-btn.active { background:rgba(102,209,47,0.2); color:#66D12F; border-left:3px solid #66D12F; }
-        .sp-nav-btn .sp-icon { font-size:1rem; width:20px; text-align:center; flex-shrink:0; }
-        .sp-nav-btn .sp-badge {
-            margin-left:auto; background:#66D12F; color:#fff;
-            font-size:0.65rem; font-weight:700; padding:2px 7px;
-            border-radius:99px; min-width:18px; text-align:center;
-        }
-        .sp-sidebar-user {
-            margin-top:auto; padding:1rem 1.2rem;
-            border-top:1px solid rgba(255,255,255,0.1);
-            display:flex; flex-direction:column; gap:0.5rem;
-        }
-        .sp-user-info { display:flex; align-items:center; gap:0.6rem; }
-        .sp-user-avatar {
-            width:34px; height:34px; border-radius:50%;
-            background:linear-gradient(135deg,#66D12F,#4FA61F);
-            display:flex; align-items:center; justify-content:center;
-            font-weight:700; font-size:0.85rem; color:#fff; flex-shrink:0;
-        }
-        .sp-user-name { font-weight:600; font-size:0.85rem; color:#fff; }
-        .sp-user-role { font-size:0.7rem; color:rgba(255,255,255,0.5); }
-        .sp-logout-btn {
-            width:100%; background:rgba(229,62,62,0.15);
-            border:1px solid rgba(229,62,62,0.35);
-            color:#fc8181; padding:0.45rem; border-radius:8px;
-            cursor:pointer; font-family:'Outfit',sans-serif;
-            font-size:0.82rem; font-weight:600;
-        }
-        .sp-logout-btn:hover { background:rgba(229,62,62,0.3); }
-
-        /* Main area */
-        .sp-main { flex:1 1 0; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
-        .sp-header {
-            display:flex; align-items:center; gap:1rem;
-            padding:0.85rem 1.5rem; background:#fff;
-            border-bottom:1px solid #e2e8f0;
-            box-shadow:0 1px 4px rgba(0,0,0,0.06);
-            position:sticky; top:0; z-index:100; width:100%; box-sizing:border-box;
-        }
-        .sp-menu-toggle {
-            display:none; flex-direction:column; gap:5px;
-            background:none; border:none; cursor:pointer; padding:4px;
-        }
-        .sp-menu-toggle span { display:block; width:22px; height:2.5px; background:#1A1A72; border-radius:2px; }
-        .sp-page-title { font-family:'Space Grotesk',sans-serif; font-size:1.1rem; font-weight:700; color:#1A1A72; flex:1; }
-        .sp-header-actions { display:flex; align-items:center; gap:0.75rem; margin-left:auto; }
-        .sp-credit-pill {
-            display:flex; align-items:center; gap:0.4rem;
-            background:#f0fdf4; border:1px solid #bbf7d0;
-            color:#166534; font-size:0.8rem; font-weight:700;
-            padding:0.35rem 0.9rem; border-radius:99px;
-        }
-        .sp-notif-btn {
-            position:relative; width:36px; height:36px; border-radius:50%;
-            background:#f7fafc; border:1px solid #e2e8f0;
-            cursor:pointer; display:flex; align-items:center; justify-content:center;
-            font-size:1rem;
-        }
-        .sp-notif-dot {
-            position:absolute; top:6px; right:6px; width:8px; height:8px;
-            background:#e53e3e; border-radius:50%; border:2px solid #fff;
-        }
-        .sp-content { padding:1.5rem; flex:1; overflow-y:auto; width:100%; box-sizing:border-box; }
-
-        /* Cards */
-        .sp-card {
-            background:#fff; border:1px solid #e2e8f0; border-radius:14px;
-            padding:1.4rem; margin-bottom:1.2rem;
-            box-shadow:0 1px 6px rgba(0,0,0,0.05);
-        }
-        .sp-card h4 { color:#1A1A72; font-size:1rem; font-weight:700; margin:0 0 1rem; display:flex; align-items:center; gap:0.5rem; }
-        .sp-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
-        .sp-card-header h4 { margin:0; }
-
-        /* Stats grid */
-        .sp-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1rem; margin-bottom:1.5rem; }
-        .sp-stat-card {
-            background:#fff; border:1px solid #e2e8f0; border-radius:14px;
-            padding:1.2rem; text-align:center;
-            box-shadow:0 1px 4px rgba(0,0,0,0.04);
-            transition:transform 0.2s,box-shadow 0.2s;
-        }
-        .sp-stat-card:hover { transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,0,0,0.1); }
-        .sp-stat-icon { font-size:1.8rem; margin-bottom:0.4rem; }
-        .sp-stat-num { font-size:1.8rem; font-weight:800; color:#1A1A72; font-family:'Space Grotesk',sans-serif; }
-        .sp-stat-label { font-size:0.78rem; color:#718096; margin-top:0.2rem; }
-        .sp-stat-card.green .sp-stat-num { color:#22c55e; }
-        .sp-stat-card.orange .sp-stat-num { color:#f59e0b; }
-        .sp-stat-card.red .sp-stat-num { color:#ef4444; }
-
-        /* Toolbar */
-        .sp-toolbar { display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap; }
-        .sp-btn-primary {
-            background:linear-gradient(135deg,#66D12F,#4FA61F);
-            color:#fff; border:none; padding:0.6rem 1.2rem;
-            border-radius:8px; font-family:'Outfit',sans-serif;
-            font-size:0.88rem; font-weight:600; cursor:pointer;
-            transition:all 0.2s; display:inline-flex; align-items:center; gap:0.4rem;
-        }
-        .sp-btn-primary:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(102,209,47,0.4); }
-        .sp-btn-secondary {
-            background:#fff; color:#1A1A72; border:1.5px solid #e2e8f0;
-            padding:0.55rem 1rem; border-radius:8px;
-            font-family:'Outfit',sans-serif; font-size:0.88rem;
-            font-weight:600; cursor:pointer; transition:all 0.2s;
-            display:inline-flex; align-items:center; gap:0.4rem;
-        }
-        .sp-btn-secondary:hover { border-color:#66D12F; color:#66D12F; }
-        .sp-btn-sm {
-            padding:0.35rem 0.8rem; font-size:0.8rem;
-            border-radius:6px; border:1px solid #e2e8f0;
-            background:#f7fafc; cursor:pointer; font-family:'Outfit',sans-serif;
-            transition:all 0.2s; color:#1A1A72;
-        }
-        .sp-btn-sm:hover { border-color:#66D12F; color:#66D12F; }
-        .sp-btn-sm.danger { color:#e53e3e; }
-        .sp-btn-sm.danger:hover { border-color:#e53e3e; background:#fff5f5; }
-        .sp-btn-sm.success { color:#22c55e; }
-        .sp-btn-sm.success:hover { border-color:#22c55e; background:#f0fdf4; }
-
-        /* Tables */
-        .sp-table-wrap { overflow-x:auto; border-radius:10px; }
-        .sp-table { width:100%; border-collapse:collapse; font-size:0.88rem; }
-        .sp-table th {
-            background:#f7fafc; color:#4a5568; font-weight:700;
-            font-size:0.75rem; letter-spacing:0.5px; text-transform:uppercase;
-            padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0; white-space:nowrap;
-        }
-        .sp-table td { padding:0.75rem 1rem; border-bottom:1px solid #f0f4f8; vertical-align:middle; }
-        .sp-table tr:hover td { background:#fafbff; }
-        .sp-table tr:last-child td { border-bottom:none; }
-
-        /* Form elements */
-        .sp-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-        .sp-form-field label { display:block; font-size:0.8rem; font-weight:600; color:#4a5568; margin-bottom:0.4rem; }
-        .sp-input {
-            width:100%; padding:0.65rem 0.9rem;
-            border:1.5px solid #e2e8f0; border-radius:8px;
-            font-family:'Outfit',sans-serif; font-size:0.9rem;
-            color:#1a202c; background:#fff; transition:border-color 0.2s;
-            box-sizing:border-box;
-        }
-        .sp-input:focus { outline:none; border-color:#66D12F; box-shadow:0 0 0 3px rgba(102,209,47,0.12); }
-        .sp-select {
-            width:100%; padding:0.65rem 0.9rem;
-            border:1.5px solid #e2e8f0; border-radius:8px;
-            font-family:'Outfit',sans-serif; font-size:0.9rem;
-            color:#1a202c; background:#fff; cursor:pointer;
-            box-sizing:border-box;
-        }
-        .sp-textarea {
-            width:100%; padding:0.65rem 0.9rem;
-            border:1.5px solid #e2e8f0; border-radius:8px;
-            font-family:'Outfit',sans-serif; font-size:0.9rem;
-            color:#1a202c; resize:vertical; min-height:100px;
-            box-sizing:border-box;
-        }
-        .sp-textarea:focus, .sp-select:focus { outline:none; border-color:#66D12F; }
-        .sp-form-hint { font-size:0.75rem; color:#718096; margin-top:0.3rem; }
-
-        /* Badges */
-        .sp-badge {
-            display:inline-block; padding:3px 10px; border-radius:99px;
-            font-size:0.72rem; font-weight:700;
-        }
-        .sp-badge.approved  { background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }
-        .sp-badge.pending   { background:#fffbeb; color:#92400e; border:1px solid #fde68a; }
-        .sp-badge.delivered { background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; }
-        .sp-badge.failed    { background:#fff5f5; color:#c53030; border:1px solid #fed7d7; }
-        .sp-badge.new       { background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd; }
-        .sp-badge.scheduled { background:#faf5ff; color:#6b21a8; border:1px solid #e9d5ff; }
-
-        /* Search bar */
-        .sp-search-wrap { position:relative; margin-left:auto; }
-        .sp-search { padding:0.5rem 0.9rem 0.5rem 2.2rem; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.85rem; font-family:'Outfit',sans-serif; width:220px; }
-        .sp-search:focus { outline:none; border-color:#66D12F; }
-        .sp-search-icon { position:absolute; left:0.7rem; top:50%; transform:translateY(-50%); color:#718096; font-size:0.85rem; }
-
-        /* Compose SMS special */
-        .sp-compose-grid { display:grid; grid-template-columns:1fr 300px; gap:1.5rem; }
-        .sp-template-panel { background:#f7fafc; border:1.5px solid #e2e8f0; border-radius:12px; padding:1rem; }
-        .sp-template-panel h5 { font-size:0.8rem; font-weight:700; color:#1A1A72; margin:0 0 0.7rem; text-transform:uppercase; letter-spacing:0.5px; }
-        .sp-template-item {
-            padding:0.6rem 0.8rem; border-radius:8px; cursor:pointer;
-            font-size:0.82rem; color:#4a5568; margin-bottom:0.4rem;
-            border:1px solid transparent; transition:all 0.2s;
-        }
-        .sp-template-item:hover, .sp-template-item.active { background:#fff; border-color:#66D12F; color:#1A1A72; }
-        .sp-char-counter { font-size:0.78rem; color:#718096; margin-top:0.4rem; display:flex; justify-content:space-between; }
-        .sp-char-counter .sp-credits { color:#1A1A72; font-weight:700; }
-
-        /* Step tabs for Compose flow */
-        .sp-steps { display:flex; gap:0; margin-bottom:1.5rem; background:#f7fafc; border-radius:10px; padding:4px; }
-        .sp-step {
-            flex:1; padding:0.55rem; text-align:center; font-size:0.82rem;
-            font-weight:600; border-radius:7px; cursor:pointer;
-            color:#718096; transition:all 0.2s;
-        }
-        .sp-step.active { background:#fff; color:#1A1A72; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
-        .sp-step.done { color:#66D12F; }
-
-        /* Notifications bell popup */
-        .sp-notif-popup {
-            position:fixed; top:60px; right:1.5rem; width:320px;
-            background:#fff; border:1px solid #e2e8f0; border-radius:14px;
-            box-shadow:0 8px 30px rgba(0,0,0,0.12); z-index:9999;
-            display:none;
-        }
-        .sp-notif-popup.open { display:block; animation:fadeInUp 0.2s ease; }
-        .sp-notif-header { padding:0.9rem 1rem; border-bottom:1px solid #e2e8f0; font-weight:700; color:#1A1A72; font-size:0.9rem; }
-        .sp-notif-item { padding:0.8rem 1rem; border-bottom:1px solid #f0f4f8; font-size:0.83rem; color:#4a5568; }
-        .sp-notif-item:last-child { border:none; }
-        .sp-notif-item strong { color:#1A1A72; }
-
-        /* Mobile sidebar overlay */
-        .sp-sidebar-overlay {
-            display:none; position:fixed; inset:0;
-            background:rgba(0,0,0,0.5); z-index:998;
-        }
-        .sp-sidebar-overlay.open { display:block; }
-
-        /* Preview table for compose */
-        .sp-preview-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
-        .sp-preview-table th { background:#1A1A72; color:#fff; padding:0.6rem 0.8rem; text-align:left; }
-        .sp-preview-table td { padding:0.55rem 0.8rem; border-bottom:1px solid #f0f4f8; }
-
-        /* API code block */
-        .sp-code-block {
-            background:#0f172a; color:#e2e8f0; border-radius:10px;
-            padding:1rem 1.2rem; font-family:'Space Mono',monospace;
-            font-size:0.78rem; line-height:1.6; overflow-x:auto;
-            position:relative;
-        }
-        .sp-code-copy {
-            position:absolute; top:0.6rem; right:0.6rem;
-            background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);
-            color:#e2e8f0; padding:0.3rem 0.7rem; border-radius:6px;
-            font-size:0.72rem; cursor:pointer; font-family:'Outfit',sans-serif;
-        }
-        .sp-code-copy:hover { background:rgba(102,209,47,0.2); }
-        .sp-code-kw  { color:#7dd3fc; }
-        .sp-code-str { color:#86efac; }
-        .sp-code-val { color:#fbbf24; }
-        .sp-code-comment { color:#64748b; }
-
-        /* Progress bar */
-        .sp-progress-bar { height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden; }
-        .sp-progress-fill { height:100%; background:linear-gradient(90deg,#66D12F,#4FA61F); border-radius:3px; transition:width 0.3s; }
-
-        /* Credit info */
-        .sp-credit-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-        .sp-credit-row { display:flex; justify-content:space-between; align-items:center; padding:0.65rem 0; border-bottom:1px solid #f0f4f8; font-size:0.88rem; }
-        .sp-credit-row:last-child { border:none; }
-        .sp-credit-row .label { color:#718096; }
-        .sp-credit-row .value { font-weight:700; color:#1A1A72; }
-        .sp-credit-row .credited { color:#22c55e; font-weight:700; }
-        .sp-credit-row .debited  { color:#ef4444; font-weight:700; }
-
-        /* Responsive */
-        @media(max-width:900px) {
-            .sp-menu-toggle { display:flex !important; }
-            .sp-sidebar { position:fixed; left:-230px; top:0; height:100vh; z-index:999; transition:transform 0.3s; }
-            .sp-sidebar.open { transform:translateX(230px); }
-            .sp-stats { grid-template-columns:repeat(2,1fr); }
-            .sp-compose-grid { grid-template-columns:1fr; }
-            .sp-form-grid { grid-template-columns:1fr; }
-            .sp-credit-grid { grid-template-columns:1fr; }
-        }
-        @media(max-width:600px) {
-            .sp-stats { grid-template-columns:1fr 1fr; }
-            .sp-header { padding:0.7rem 1rem; }
-            .sp-content { padding:1rem; }
-        }
-
-
-
-        /* ── SMS Portal Nav Button ──────────────────────────────── */
-        .sp-portal-nav-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            padding: 0.52rem 1.1rem;
-            border-radius: 50px;
-            font-size: 0.83rem;
-            font-weight: 700;
+        /* ── SMS Portal Button ─────────────────────────────────── */
+        .btn-sms-portal {
+            display: inline-flex; align-items: center; gap: 0.38rem;
+            padding: 0.5rem 1.1rem; border-radius: 50px;
+            font-size: 0.82rem; font-weight: 700;
             font-family: 'Outfit', sans-serif;
-            text-decoration: none;
-            white-space: nowrap;
-            cursor: pointer;
+            text-decoration: none; white-space: nowrap; cursor: pointer;
             transition: all 0.25s ease;
-            border: 2px solid #1A1A72;
-            background: transparent;
-            color: #1A1A72 !important;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff !important; border: none;
+            box-shadow: 0 4px 14px rgba(99,102,241,0.35);
         }
-        .sp-portal-nav-btn:hover {
+        .btn-sms-portal:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(99,102,241,0.55);
+        }
+        /* ── Voice Agent Button ────────────────────────────────── */
+        .btn-voice-agent {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.5rem 1.1rem; border-radius: 50px;
+            font-size: 0.82rem; font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            text-decoration: none; white-space: nowrap; cursor: pointer;
+            transition: all 0.25s ease;
+            border: 2px solid #a78bfa;
+            background: transparent; color: #7c3aed !important;
+        }
+        .btn-voice-agent:hover {
+            background: linear-gradient(135deg, #7c3aed, #a78bfa);
+            color: #fff !important; border-color: #7c3aed;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(124,58,237,0.4);
+        }
+        .va-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: currentColor; flex-shrink: 0;
+            animation: vaBlink 1.4s ease-in-out infinite;
+        }
+        @keyframes vaBlink {
+            0%,100%{ opacity:1; transform:scale(1); }
+            50%    { opacity:0.3; transform:scale(0.55); }
+        }
+        /* Mobile overrides */
+        .mobile-nav-footer .btn-sms-portal,
+        .mobile-nav-footer .btn-voice-agent {
+            display: flex; justify-content: center; align-items: center;
+            gap: 0.4rem; padding: 0.85rem; border-radius: 10px;
+            width: 100%; box-sizing: border-box; font-size: 0.95rem;
+            text-align: center;
+        }
+        .mobile-nav-footer .btn-voice-agent {
+            background: linear-gradient(135deg,#7c3aed,#a78bfa);
+            color: #fff !important; border-color: #7c3aed;
+        }
+        .mobile-portal-btn {
+            display: flex !important; justify-content: center; align-items: center;
+            gap: 0.4rem; padding: 0.85rem; border-radius: 10px;
+            width: 100%; box-sizing: border-box; font-size: 0.95rem;
+            text-align: center;
+        }
+
+        /* ── Login Button (pre-login) ──────────────────────────────── */
+        .btn-login-main {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.5rem 1.15rem; border-radius: 50px;
+            font-size: 0.84rem; font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            text-decoration: none; white-space: nowrap; cursor: pointer;
+            transition: all 0.25s ease;
             background: #1A1A72;
             color: #fff !important;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(26,26,114,0.3);
+            border: 2px solid #1A1A72;
+            box-shadow: 0 3px 12px rgba(26,26,114,0.25);
         }
+        .btn-login-main:hover {
+            background: #12123F;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(26,26,114,0.4);
+        }
+
+        /* ── Portal Launcher (post-login) ─────────────────────────── */
+        .nav-login-wrap { position: relative; }
+
+        .nav-portal-launcher { position: relative; }
+
+        .portal-launcher-btn {
+            display: inline-flex; align-items: center; gap: 0.42rem;
+            padding: 0.48rem 1.05rem 0.48rem 0.85rem;
+            border-radius: 50px;
+            font-size: 0.84rem; font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            cursor: pointer; border: 2px solid #1A1A72;
+            background: #1A1A72; color: #fff;
+            transition: all 0.22s ease;
+            box-shadow: 0 3px 12px rgba(26,26,114,0.22);
+        }
+        .portal-launcher-btn:hover {
+            background: #12123F;
+            box-shadow: 0 6px 20px rgba(26,26,114,0.38);
+        }
+        .portal-chevron {
+            transition: transform 0.22s ease;
+            opacity: 0.75;
+        }
+        .portal-launcher-btn.open .portal-chevron {
+            transform: rotate(180deg);
+        }
+
+        /* ── Portal Dropdown Panel ─────────────────────────────────── */
+        .portal-dropdown {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            background: #fff;
+            border: 1px solid rgba(26,26,114,0.10);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(26,26,114,0.16), 0 4px 16px rgba(0,0,0,0.06);
+            width: 230px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px) scale(0.97);
+            transform-origin: top right;
+            transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
+            z-index: 1100;
+            overflow: hidden;
+        }
+        .portal-dropdown.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+        .portal-dropdown-header {
+            padding: 0.85rem 1.1rem 0.55rem;
+            border-bottom: 1px solid rgba(26,26,114,0.07);
+        }
+        .portal-dropdown-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #9aa5b4;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Portal options */
+        .portal-option {
+            display: flex; align-items: center; gap: 0.85rem;
+            padding: 0.85rem 1.1rem;
+            text-decoration: none;
+            transition: background 0.18s ease;
+            border-bottom: 1px solid rgba(26,26,114,0.05);
+        }
+        .portal-option:last-of-type { border-bottom: none; }
+        .portal-option:hover { background: rgba(26,26,114,0.04); }
+
+        .portal-option-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .sms-option .portal-option-icon {
+            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12));
+            color: #6366f1;
+        }
+        .voice-option .portal-option-icon {
+            background: linear-gradient(135deg, rgba(102,209,47,0.12), rgba(79,166,31,0.12));
+            color: #3da813;
+        }
+
+        .portal-option-text { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+        .portal-option-text strong {
+            font-size: 0.88rem; font-weight: 700;
+            color: #1A1A72; font-family: 'Outfit', sans-serif;
+        }
+        .portal-option-text small {
+            font-size: 0.73rem; color: #9aa5b4;
+            display: flex; align-items: center; gap: 0.3rem;
+        }
+        .va-dot-inline {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #66D12F; flex-shrink: 0;
+            animation: vaBlink 1.4s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        .portal-option-arrow {
+            color: #c5cdd6;
+            transition: color 0.18s, transform 0.18s;
+        }
+        .portal-option:hover .portal-option-arrow {
+            color: #6366f1;
+            transform: translateX(3px);
+        }
+        .voice-option:hover .portal-option-arrow { color: #66D12F; }
+
+        .portal-dropdown-footer {
+            padding: 0.65rem 1.1rem;
+            background: rgba(26,26,114,0.025);
+            border-top: 1px solid rgba(26,26,114,0.07);
+        }
+        .portal-logout-btn {
+            display: flex; align-items: center; gap: 0.45rem;
+            background: none; border: none; cursor: pointer;
+            font-size: 0.8rem; font-weight: 600;
+            color: #9aa5b4; font-family: 'Outfit', sans-serif;
+            padding: 0; transition: color 0.18s;
+        }
+        .portal-logout-btn:hover { color: #e53e3e; }
 
         /* ── Login Page ── */
         .login-page-wrap {
@@ -2047,12 +1921,147 @@
             transition: color 0.2s;
         }
         .login-back-btn:hover { color: #66D12F; }
-        .login-footer-note {
+        /* ── Login Page — Portal Access Section ─────────────────────── */
+        .login-portals-wrap {
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .login-portals-divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.4rem;
+        }
+        .login-portals-divider::before,
+        .login-portals-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(26,26,114,0.12);
+        }
+        .login-portals-divider span {
+            font-size: 0.78rem;
             color: #9aa5b4;
-            font-size: 0.9rem;
-            margin-top: 1rem;
+            white-space: nowrap;
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: 0.3px;
+        }
+        .login-portal-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        @media (max-width: 560px) {
+            .login-portal-cards { grid-template-columns: 1fr; }
         }
 
+        .login-portal-card {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.15rem 1.3rem;
+            border-radius: 16px;
+            text-decoration: none;
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+        .sms-portal-card {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none;
+            box-shadow: 0 6px 24px rgba(99,102,241,0.38);
+        }
+        .sms-portal-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 40px rgba(99,102,241,0.55);
+        }
+        .voice-portal-card {
+            background: linear-gradient(135deg, #1A1A72 0%, #2d3a9e 100%);
+            border: none;
+            box-shadow: 0 6px 24px rgba(26,26,114,0.38);
+        }
+        .voice-portal-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 40px rgba(26,26,114,0.55);
+        }
+        .login-portal-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -60%; width: 40%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
+            transform: skewX(-18deg);
+            transition: left 0.5s ease;
+        }
+        .login-portal-card:hover::before { left: 130%; }
+
+        .login-portal-icon {
+            width: 46px; height: 46px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.2);
+            color: #ffffff;
+            position: relative; z-index: 1;
+        }
+        .login-portal-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            position: relative; z-index: 1;
+        }
+        .login-portal-info strong {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #ffffff;
+            font-family: 'Outfit', sans-serif;
+        }
+        .login-portal-info span {
+            font-size: 0.76rem;
+            color: rgba(255,255,255,0.72);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .va-dot-login {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #66D12F;
+            flex-shrink: 0;
+            display: inline-block;
+            box-shadow: 0 0 6px rgba(102,209,47,0.9);
+            animation: vaBlink 1.4s ease-in-out infinite;
+        }
+        .login-portal-arrow {
+            color: rgba(255,255,255,0.5);
+            transition: color 0.2s, transform 0.2s;
+            flex-shrink: 0;
+            position: relative; z-index: 1;
+        }
+        .login-portal-card:hover .login-portal-arrow {
+            color: #ffffff;
+            transform: translateX(4px);
+        }
+
+        /* ── Login page footer note ── */
+        .login-footer-note {
+            color: #718096;
+            font-size: 0.88rem;
+            margin-top: 1.6rem;
+            text-align: center;
+        }
+        .login-footer-note a {
+            color: #66D12F;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .login-footer-note a:hover {
+            color: #4FA61F;
+            text-decoration: underline;
+        }
 
         /* ── HRMS Shell — Light Theme ── */
         #hrms { background: #f0f4f8; min-height: 100vh; padding: 0 !important; width: 100%; }
@@ -3221,8 +3230,52 @@
                 <li><a href="#dlt">DLT</a></li>
                 <li><a href="#developers">Developers</a></li>
                 <li><a href="#" class="btn btn-primary" onclick="event.preventDefault();showPage('contact-page')">Contact Us</a></li>
-                <li><a href="#" class="sp-portal-nav-btn" onclick="event.preventDefault();showPage('sms-portal')" title="SMS Portal">📨 SMS Portal</a></li>
-                <li><a href="#" class="btn btn-secondary" onclick="event.preventDefault();showPage('login')">Login</a></li>
+                <li class="nav-login-wrap" id="navLoginWrap">
+                    <!-- Pre-login: single Login button -->
+                    <a href="#" class="btn-login-main" id="navLoginBtn" onclick="event.preventDefault();showPage('login')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                        Login
+                    </a>
+                    <!-- Post-login: portal launcher (hidden until logged in) -->
+                    <div class="nav-portal-launcher" id="navPortalLauncher" style="display:none;">
+                        <button class="portal-launcher-btn" id="portalLauncherBtn" onclick="togglePortalDropdown()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                            <span id="portalUserLabel">My Portals</span>
+                            <svg class="portal-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="portal-dropdown" id="portalDropdown">
+                            <div class="portal-dropdown-header">
+                                <span class="portal-dropdown-title">Choose Portal</span>
+                            </div>
+                            <a href="/sms-portal.html" id="navDropSmsPortal" class="portal-option sms-option" target="_blank" rel="noopener noreferrer">
+                                <span class="portal-option-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                                </span>
+                                <span class="portal-option-text">
+                                    <strong>SMS Portal</strong>
+                                    <small>Campaigns &amp; messaging</small>
+                                </span>
+                                <svg class="portal-option-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                            </a>
+                            <a href="https://voice-agent-3mph.onrender.com/login" id="navDropVoiceAgent" class="portal-option voice-option" target="_blank" rel="noopener noreferrer">
+                                <span class="portal-option-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+                                </span>
+                                <span class="portal-option-text">
+                                    <strong>Voice Agent</strong>
+                                    <small><span class="va-dot-inline"></span>AI voice platform</small>
+                                </span>
+                                <svg class="portal-option-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                            </a>
+                            <div class="portal-dropdown-footer">
+                                <button onclick="hrmsLogout()" class="portal-logout-btn">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                                    Sign out
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </li>
             </ul>
         </nav>
     </header>
@@ -3274,9 +3327,14 @@
         </ul>
         <div class="mobile-nav-footer">
             <a href="#" class="btn btn-primary" onclick="event.preventDefault();closeMenu();showPage('contact-page')">Contact Us</a>
-            <a href="#" class="sp-portal-nav-btn" style="display:block;text-align:center;padding:0.85rem;width:100%;box-sizing:border-box;" onclick="event.preventDefault();closeMenu();showPage('sms-portal')">📨 SMS Portal</a>
+            <!-- Pre-login -->
             <a href="#" class="btn btn-secondary" id="mobileLoginBtn" onclick="event.preventDefault();closeMenu();showPage('login')">🔐 Login</a>
-            <button id="mobileLogoutBtn" class="btn-logout-mobile" onclick="closeMenu();hrmsLogout()" style="display:none;">⬅ Logout</button>
+            <!-- Post-login portals (hidden until logged in) -->
+            <div id="mobilePortalBtns" style="display:none;display:none;flex-direction:column;gap:0.6rem;width:100%;">
+                <a href="/sms-portal.html" id="mobSmsPortal" class="btn-sms-portal mobile-portal-btn" target="_blank" rel="noopener noreferrer" onclick="closeMenu()">📨 SMS Portal</a>
+                <a href="https://voice-agent-3mph.onrender.com/login" id="mobVoiceAgent" class="btn-voice-agent mobile-portal-btn" target="_blank" rel="noopener noreferrer" onclick="closeMenu()"><span class="va-dot"></span>🎙 Voice Agent</a>
+                <button id="mobileLogoutBtn" class="btn-logout-mobile" onclick="closeMenu();hrmsLogout()">⬅ Sign out</button>
+            </div>
         </div>
     </div>
 
@@ -3952,22 +4010,41 @@
 
                 </div>
 
-                <p class="login-footer-note">Need an account? <a href="#" onclick="event.preventDefault();openContactPopup()" style="color:#66D12F;text-decoration:none;cursor:pointer;">Contact Us</a></p>
+                <!-- Portal Access — always visible on the login page -->
+                <div class="login-portals-wrap fade-in">
+                    <div class="login-portals-divider">
+                        <span>or access a portal directly</span>
+                    </div>
+                    <div class="login-portal-cards">
+                        <a href="/sms-portal.html" id="loginSmsPortal" class="login-portal-card sms-portal-card" target="_blank" rel="noopener noreferrer">
+                            <div class="login-portal-icon">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                            </div>
+                            <div class="login-portal-info">
+                                <strong>SMS Portal</strong>
+                                <span>Manage campaigns &amp; messaging</span>
+                            </div>
+                            <svg class="login-portal-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </a>
+                        <a href="https://voice-agent-3mph.onrender.com/login" id="loginVoiceAgent" class="login-portal-card voice-portal-card" target="_blank" rel="noopener noreferrer">
+                            <div class="login-portal-icon">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+                            </div>
+                            <div class="login-portal-info">
+                                <strong>Voice Agent</strong>
+                                <span><span class="va-dot-login"></span> AI voice platform</span>
+                            </div>
+                            <svg class="login-portal-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </a>
+                    </div>
+                </div>
+
+                <p class="login-footer-note">Need an account? <a href="#" onclick="event.preventDefault();openContactPopup()">Contact Us</a></p>
             </div>
         </div>
     </section>
 
     
-
-    <!-- ═══════════════════════════════════════════════════════════
-         SMS PORTAL — Full integrated app inside LeoMox SPA
-    ═══════════════════════════════════════════════════════════ -->
-    <section id="sms-portal" style="padding:0;min-height:100vh;width:100%;background:#f0f4f8;">
-        <div id="smsPortalApp" style="width:100%;height:100%;">
-            <!-- Rendered by smsPortal JS -->
-        </div>
-    </section>
-
     <!-- HRMS Portal Section -->
     <section id="hrms" style="padding:0;min-height:100vh;width:100%;">
         <div id="hrmsApp" style="width:100%;height:100%;">
@@ -4093,7 +4170,7 @@
             'promotional-sms','transactional-sms','otp-sms','api-solutions','short-url',
             'obd-calls','voice-calls','voice-conference',
             'promotional-whatsapp','utility-whatsapp','chatbot',
-            'rcs','dlt','developers','features','login','hrms','contact-page','sms-portal'
+            'rcs','dlt','developers','features','login','hrms','contact-page'
         ];
 
         // Add spa-section class to all sections
@@ -4114,15 +4191,14 @@
                 s.classList.remove('active');
             });
 
-            const isHRMS = (targetId === 'hrms' || targetId === 'sms-portal');
+            const isHRMS = (targetId === 'hrms');
             const siteHeader = document.querySelector('header');
             const siteFooter = document.getElementById('contact');
             const mobilePanel = document.getElementById('mobilePanel');
             const mobileOverlay = document.getElementById('mobileOverlay');
 
-            const isSMSPortal = (targetId === 'sms-portal');
             if (isHRMS) {
-                // Hide nav and footer for full HRMS/SMS Portal experience
+                // Hide nav and footer for full HRMS experience
                 if (siteHeader) siteHeader.style.display = 'none';
                 if (siteFooter) siteFooter.style.display = 'none';
                 document.body.style.paddingTop = '0';
@@ -4171,8 +4247,6 @@
             }
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            // Init SMS Portal if navigating to it
-            if (targetId === 'sms-portal' && window.initSMSPortal) { setTimeout(initSMSPortal, 80); }
         }
 
         // Intercept all anchor link clicks
@@ -4483,1063 +4557,69 @@
             showLoadingThen(() => showPage('login'));
         }
 
-
-        // ═══════════════════════════════════════════════════════════════
-        // SMS PORTAL — State & Rendering Engine
-        // ═══════════════════════════════════════════════════════════════
-        const SMS = {
-            currentUser: { name: 'LEONAS1', role: 'Admin', credits: 9 },
-            activeModule: 'dashboard',
-            data: {
-                senderIds: [
-                    { id: 'S001', name: 'LEONAS', approvedOn: '23/12/24 10:26 AM', status: 'Approved' },
-                    { id: 'S002', name: 'LEOSMS', approvedOn: '30/10/24 11:54 AM', status: 'Approved' },
-                ],
-                templates: [
-                    { id: '1707162669274476612', name: 'Balance Alert', senderId: 'LEOSMS, LEONAS', templateId: '1707162669274476612', message: 'Dear valuable customer {#var#}, you have less SMS balance in your account {#var#},contact your respective account manager for recharge and avoid service interruptions. LEOSMS' },
-                ],
-                groups: [
-                    { id: 'G001', name: 'Sales', count: 0 },
-                    { id: 'G002', name: 'Support', count: 0 },
-                    { id: 'G003', name: 'Leonas', count: 4 },
-                ],
-                smsHistory: [
-                    { id: 'C001', camp: 'Balance Alert Campaign', senderId: 'LEONAS', message: 'Dear valuable customer Ragini...', mobileCount: 4, smsCount: 8, status: 'Delivered', date: '20/04/2025 11:59' },
-                    { id: 'C002', camp: 'Promo April', senderId: 'LEOSMS', message: 'Dear valuable customer...', mobileCount: 10, smsCount: 10, status: 'Delivered', date: '19/04/2025 09:30' },
-                ],
-                apiHistory: [
-                    { id: 'A001', tid: '76612', senderId: 'LEONAS', mobile: '9515115345', message: 'Dear valuable customer Ragini...', status: 'Failed', genTime: '20/04/2025 11:59', dlvTime: '20/04/2025 12:00' },
-                ],
-                creditHistory: [
-                    { sno: 1, date: '20-04-2025 11:11:59 am', credited: 10, debited: '' },
-                    { sno: 2, date: '22-01-2025 1:01:08 pm', credited: 10, debited: '' },
-                    { sno: 3, date: '03-01-2025 11:11:12 am', credited: 30, debited: '' },
-                    { sno: 4, date: '23-12-2024 10:10:24 am', credited: '', debited: 70 },
-                    { sno: 5, date: '23-12-2024 10:10:23 am', credited: '', debited: 5 },
-                    { sno: 6, date: '15-12-2024 11:11:18 am', credited: 100, debited: '' },
-                    { sno: 7, date: '30-10-2024 11:11:54 am', credited: 10, debited: '' },
-                ],
-                shortUrls: [],
-                activityLog: [
-                    { user: 'LEONAS1', type: 'credits', action: 'hydBranche.added 10 Credits', date: '20/04/2025 11:59 AM' },
-                    { user: 'LEONAS1', type: 'credits', action: 'You sent messages : 3. Deduct Credits : 6', date: '20/04/2025 11:19 AM' },
-                    { user: 'LEONAS1', type: 'login', action: 'logged in 115.98.65.83', date: '20/04/2025 10:23 AM' },
-                    { user: 'LEONAS1', type: 'login', action: 'logged in 115.98.65.83', date: '19/04/2025 05:44 PM' },
-                    { user: 'LEONAS1', type: 'logout', action: 'Logged out.', date: '21/03/2025 10:37 AM' },
-                    { user: 'LEONAS1', type: 'dlt_template', action: 'DLT template updated ID:17071626692744476612', date: '21/03/2025 10:35 AM' },
-                ],
-            },
-        };
-
-        // Nav config
-        const SP_NAV = [
-            { section: 'SMS', items: [
-                { id: 'dashboard',   icon: '📊', label: 'Dashboard' },
-                { id: 'sender-ids', icon: '🆔', label: 'Sender IDs' },
-                { id: 'templates',  icon: '📋', label: 'Templates' },
-                { id: 'compose',    icon: '✉️',  label: 'Compose SMS' },
-                { id: 'customize',  icon: '⚙️',  label: 'Customize SMS' },
-                { id: 'excel-sms',  icon: '📊', label: 'Excel SMS' },
-            ]},
-            { section: 'Reports', items: [
-                { id: 'sms-history', icon: '📜', label: 'SMS History' },
-                { id: 'api-history', icon: '🔌', label: 'API History' },
-            ]},
-            { section: 'Groups', items: [
-                { id: 'groups', icon: '👥', label: 'Groups' },
-            ]},
-            { section: 'Credits', items: [
-                { id: 'credit-history', icon: '💳', label: 'Credit History' },
-                { id: 'activity-log',   icon: '📝', label: 'Activity Log' },
-            ]},
-            { section: 'Developers', items: [
-                { id: 'http-api', icon: '🔗', label: 'HTTP API' },
-                { id: 'xml-api',  icon: '🔧', label: 'XML API' },
-            ]},
-            { section: 'Tools', items: [
-                { id: 'short-url', icon: '🔗', label: 'Short URL' },
-            ]},
-        ];
-
-        function spEsc(str) {
-            return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
-
-        function renderSMSPortal() {
-            const app = document.getElementById('smsPortalApp');
-            if (!app) return;
-            const u = SMS.currentUser;
-            const m = SMS.activeModule;
-
-            // Build sidebar nav
-            let navHtml = '';
-            SP_NAV.forEach(group => {
-                navHtml += `<div class="sp-nav-section"><div class="sp-nav-label">${group.section}</div>`;
-                group.items.forEach(item => {
-                    const active = m === item.id ? 'active' : '';
-                    navHtml += `<button class="sp-nav-btn ${active}" onclick="spNavigate('${item.id}')">
-                        <span class="sp-icon">${item.icon}</span> ${item.label}
-                    </button>`;
-                });
-                navHtml += '</div>';
-            });
-
-            app.innerHTML = `
-            <div class="sp-sidebar" id="spSidebar">
-                <a href="#" class="sp-sidebar-logo" onclick="event.preventDefault();showPage('home')">
-                    <svg width="28" height="28" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#66D12F"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="16" font-weight="bold" font-family="Outfit">L</text></svg>
-                    <div><div class="sp-sidebar-logo-text">Leo<span>Mox</span></div><div style="font-size:0.6rem;color:rgba(255,255,255,0.4);letter-spacing:1px;">SMS PORTAL</div></div>
-                </a>
-                ${navHtml}
-                <div class="sp-sidebar-user">
-                    <div class="sp-user-info">
-                        <div class="sp-user-avatar">${spEsc(u.name.charAt(0))}</div>
-                        <div><div class="sp-user-name">${spEsc(u.name)}</div><div class="sp-user-role">${spEsc(u.role)}</div></div>
-                    </div>
-                    <button class="sp-logout-btn" onclick="showPage('home')">🚪 Exit Portal</button>
-                </div>
-            </div>
-            <div class="sp-sidebar-overlay" id="spOverlay" onclick="spCloseSidebar()"></div>
-            <div class="sp-main">
-                <div class="sp-header">
-                    <button class="sp-menu-toggle" onclick="spOpenSidebar()"><span></span><span></span><span></span></button>
-                    <div class="sp-page-title">${spPageTitle(m)}</div>
-                    <div class="sp-header-actions">
-                        <div class="sp-credit-pill">💰 ${u.credits} Credits</div>
-                        <button class="sp-notif-btn" onclick="spToggleNotif()" id="spNotifBtn">🔔<span class="sp-notif-dot"></span></button>
-                    </div>
-                </div>
-                <div class="sp-notif-popup" id="spNotifPopup">
-                    <div class="sp-notif-header">🔔 Notifications</div>
-                    <div class="sp-notif-item"><strong>Content Template validation</strong> started from Today April 1st, please take approvals if not approved.</div>
-                    <div class="sp-notif-item"><strong>Without Entity, Header & Template</strong> registration SMS will not deliver from today onwards.</div>
-                </div>
-                <div class="sp-content" id="spContent">
-                    ${spRenderModule(m)}
-                </div>
-            </div>`;
-        }
-
-        function spPageTitle(m) {
-            const titles = {
-                'dashboard':'Dashboard','sender-ids':'Sender IDs','templates':'Templates',
-                'compose':'Compose SMS','customize':'Customize SMS','excel-sms':'Excel SMS',
-                'sms-history':'SMS History','api-history':'API History','groups':'Groups',
-                'credit-history':'Credit History','activity-log':'Activity Log',
-                'http-api':'HTTP API','xml-api':'XML API','short-url':'Short URL'
-            };
-            return titles[m] || 'Dashboard';
-        }
-
-        function spNavigate(moduleId) {
-            SMS.activeModule = moduleId;
-            // update active state
-            document.querySelectorAll('.sp-nav-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.sp-nav-btn').forEach(b => {
-                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'"+moduleId+"'")) b.classList.add('active');
-            });
-            document.querySelector('.sp-page-title').textContent = spPageTitle(moduleId);
-            const content = document.getElementById('spContent');
-            if (content) {
-                content.style.opacity = '0';
-                setTimeout(() => {
-                    content.innerHTML = spRenderModule(moduleId);
-                    content.style.opacity = '1';
-                    content.style.transition = 'opacity 0.2s';
-                }, 120);
-            }
-            spCloseSidebar();
-        }
-
-        function spOpenSidebar() {
-            document.getElementById('spSidebar')?.classList.add('open');
-            document.getElementById('spOverlay')?.classList.add('open');
-        }
-        function spCloseSidebar() {
-            document.getElementById('spSidebar')?.classList.remove('open');
-            document.getElementById('spOverlay')?.classList.remove('open');
-        }
-        function spToggleNotif() {
-            document.getElementById('spNotifPopup')?.classList.toggle('open');
-        }
-
-        function spRenderModule(m) {
-            switch(m) {
-                case 'dashboard':      return spDashboard();
-                case 'sender-ids':    return spSenderIds();
-                case 'templates':     return spTemplates();
-                case 'compose':       return spCompose();
-                case 'customize':     return spCustomize();
-                case 'excel-sms':     return spExcelSms();
-                case 'sms-history':   return spSmsHistory();
-                case 'api-history':   return spApiHistory();
-                case 'groups':        return spGroups();
-                case 'credit-history':return spCreditHistory();
-                case 'activity-log':  return spActivityLog();
-                case 'http-api':      return spHttpApi();
-                case 'xml-api':       return spXmlApi();
-                case 'short-url':     return spShortUrl();
-                default:              return spDashboard();
-            }
-        }
-
-        // ── Dashboard ─────────────────────────────────────────────────
-        function spDashboard() {
-            const d = SMS.data;
-            const totalSent = d.smsHistory.reduce((s,h) => s + (h.smsCount||0), 0);
-            const totalMobile = d.smsHistory.reduce((s,h) => s + (h.mobileCount||0), 0);
-            const delivered = d.smsHistory.filter(h=>h.status==='Delivered').length;
-            return `
-            <div class="sp-stats">
-                <div class="sp-stat-card green">
-                    <div class="sp-stat-icon">📨</div>
-                    <div class="sp-stat-num">${totalSent}</div>
-                    <div class="sp-stat-label">SMS Sent</div>
-                </div>
-                <div class="sp-stat-card">
-                    <div class="sp-stat-icon">👥</div>
-                    <div class="sp-stat-num">${totalMobile}</div>
-                    <div class="sp-stat-label">Contacts Reached</div>
-                </div>
-                <div class="sp-stat-card">
-                    <div class="sp-stat-icon">✅</div>
-                    <div class="sp-stat-num">${delivered}</div>
-                    <div class="sp-stat-label">Delivered</div>
-                </div>
-                <div class="sp-stat-card orange">
-                    <div class="sp-stat-icon">💰</div>
-                    <div class="sp-stat-num">${SMS.currentUser.credits}</div>
-                    <div class="sp-stat-label">Credits Left</div>
-                </div>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
-                <div class="sp-card">
-                    <div class="sp-card-header">
-                        <h4>📊 Account Manager</h4>
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                        <button class="sp-btn-primary" onclick="spNavigate('sender-ids')" style="justify-content:center;">1️⃣ Add Sender ID</button>
-                        <button class="sp-btn-primary" onclick="spNavigate('sender-ids')" style="justify-content:center;">2️⃣ Add Sender ID</button>
-                        <button class="sp-btn-primary" onclick="spNavigate('templates')" style="justify-content:center;">3️⃣ Add Template</button>
-                        <button class="sp-btn-primary" onclick="spNavigate('compose')" style="justify-content:center;">4️⃣ Compose SMS</button>
-                    </div>
-                </div>
-                <div class="sp-card">
-                    <h4>🔔 Notifications</h4>
-                    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.8rem;font-size:0.83rem;color:#92400e;margin-bottom:0.6rem;">
-                        ⚠️ <strong>Content Template validation</strong> started from Today April 1st, please take approvals if not approved. Without Entity, Header & Template registration SMS will not deliver from today onwards.
-                    </div>
-                    <p style="font-size:0.83rem;color:#718096;">Your last login: 20/04/2025 12:20</p>
-                </div>
-            </div>
-
-            <div class="sp-card">
-                <h4>📜 Recent SMS Campaigns</h4>
-                <div class="sp-table-wrap">
-                    <table class="sp-table">
-                        <thead><tr><th>Campaign</th><th>Sender ID</th><th>Contacts</th><th>SMS Count</th><th>Status</th><th>Date</th></tr></thead>
-                        <tbody>${SMS.data.smsHistory.map(h => `
-                        <tr>
-                            <td><b>${spEsc(h.camp)}</b></td>
-                            <td>${spEsc(h.senderId)}</td>
-                            <td>${h.mobileCount}</td>
-                            <td>${h.smsCount}</td>
-                            <td><span class="sp-badge delivered">${spEsc(h.status)}</span></td>
-                            <td style="color:#718096;font-size:0.82rem;">${spEsc(h.date)}</td>
-                        </tr>`).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
-        }
-
-        // ── Sender IDs ────────────────────────────────────────────────
-        function spSenderIds() {
-            return `
-            <div class="sp-card" style="margin-bottom:1rem;">
-                <h4>➕ Add Sender ID</h4>
-                <div class="sp-form-grid">
-                    <div class="sp-form-field">
-                        <label>Sender ID</label>
-                        <input class="sp-input" id="sp_newSenderId" placeholder="e.g. LEONAS" maxlength="6">
-                        <div class="sp-form-hint">Exact 6 Alphabets or Numbers. No Special Characters or Spaces.</div>
-                    </div>
-                </div>
-                <button class="sp-btn-primary" style="margin-top:1rem;" onclick="spAddSenderId()">📤 Submit</button>
-                <div id="sp_senderMsg" style="margin-top:0.5rem;font-size:0.85rem;"></div>
-            </div>
-            <div class="sp-card">
-                <div class="sp-card-header">
-                    <h4>🆔 Sender IDs</h4>
-                    <div class="sp-search-wrap"><span class="sp-search-icon">🔍</span><input class="sp-search sp-input" placeholder="Search here..."></div>
-                </div>
-                <div class="sp-table-wrap">
-                    <table class="sp-table">
-                        <thead><tr><th>S.No</th><th>Sender ID</th><th>Approved On</th><th>Status</th><th>Delete</th></tr></thead>
-                        <tbody id="sp_senderTable">${spRenderSenderRows()}</tbody>
-                    </table>
-                </div>
-            </div>`;
-        }
-
-        function spRenderSenderRows() {
-            return SMS.data.senderIds.map((s,i) => `
-            <tr>
-                <td>${i+1}</td>
-                <td><b>${spEsc(s.name)}</b></td>
-                <td style="color:#718096;">${spEsc(s.approvedOn)}</td>
-                <td><span class="sp-badge approved">✔ ${spEsc(s.status)}</span></td>
-                <td><button class="sp-btn-sm danger" onclick="spDeleteSender('${s.id}')">🗑 Delete</button></td>
-            </tr>`).join('');
-        }
-
-        function spAddSenderId() {
-            const val = (document.getElementById('sp_newSenderId')?.value||'').trim().toUpperCase();
-            const msg = document.getElementById('sp_senderMsg');
-            if (!val || val.length !== 6 || !/^[A-Z0-9]+$/.test(val)) {
-                if (msg) msg.innerHTML = '<span style="color:#e53e3e;">❌ Sender ID must be exactly 6 alphanumeric characters.</span>'; return;
-            }
-            if (SMS.data.senderIds.find(s=>s.name===val)) {
-                if (msg) msg.innerHTML = '<span style="color:#e53e3e;">❌ This Sender ID already exists.</span>'; return;
-            }
-            const now = new Date().toLocaleString('en-IN',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
-            SMS.data.senderIds.push({ id: 'S'+Date.now(), name: val, approvedOn: now, status: 'Pending' });
-            if (msg) msg.innerHTML = '<span style="color:#22c55e;">✅ Sender ID submitted for approval.</span>';
-            const t = document.getElementById('sp_senderTable');
-            if (t) t.innerHTML = spRenderSenderRows();
-            if (document.getElementById('sp_newSenderId')) document.getElementById('sp_newSenderId').value = '';
-        }
-
-        function spDeleteSender(id) {
-            if (!confirm('Delete this Sender ID?')) return;
-            SMS.data.senderIds = SMS.data.senderIds.filter(s=>s.id!==id);
-            const t = document.getElementById('sp_senderTable');
-            if (t) t.innerHTML = spRenderSenderRows();
-        }
-
-        // ── Templates ─────────────────────────────────────────────────
-        function spTemplates() {
-            return `
-            <div class="sp-toolbar">
-                <button class="sp-btn-primary" onclick="spShowAddTemplate()">+ Add Template</button>
-                <button class="sp-btn-secondary" onclick="spBulkTemplate()">📦 Bulk Upload</button>
-                <button class="sp-btn-secondary">⬇ Download Template</button>
-            </div>
-            <div id="sp_templateFormWrap" style="display:none;" class="sp-card"></div>
-            <div class="sp-card">
-                <div class="sp-card-header">
-                    <h4>📋 Templates</h4>
-                    <div class="sp-search-wrap"><span class="sp-search-icon">🔍</span><input class="sp-search sp-input" placeholder="Search here..."></div>
-                </div>
-                <div class="sp-table-wrap">
-                    <table class="sp-table">
-                        <thead><tr><th>S.No</th><th>Name</th><th>Sender IDs</th><th>Template ID</th><th>Message</th><th>Actions</th></tr></thead>
-                        <tbody id="sp_templateTable">${spRenderTemplateRows()}</tbody>
-                    </table>
-                </div>
-            </div>`;
-        }
-
-        function spRenderTemplateRows() {
-            return SMS.data.templates.map((t,i) => `
-            <tr>
-                <td>${i+1}</td>
-                <td><b>${spEsc(t.name)}</b></td>
-                <td>${spEsc(t.senderId)}</td>
-                <td style="font-size:0.78rem;color:#718096;">${spEsc(t.templateId)}</td>
-                <td style="max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:0.82rem;">${spEsc(t.message)}</td>
-                <td>
-                    <button class="sp-btn-sm" onclick="spEditTemplate('${t.id}')">✏ Edit</button>
-                    <button class="sp-btn-sm danger" onclick="spDeleteTemplate('${t.id}')">🗑</button>
-                </td>
-            </tr>`).join('');
-        }
-
-        function spShowAddTemplate(id) {
-            const wrap = document.getElementById('sp_templateFormWrap');
-            const t = id ? SMS.data.templates.find(x=>x.id===id) : null;
-            if (!wrap) return;
-            wrap.style.display = 'block';
-            const senderOptions = SMS.data.senderIds.map(s=>`
-                <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;">
-                    <input type="checkbox" value="${spEsc(s.name)}" ${t&&t.senderId.includes(s.name)?'checked':''}> ${spEsc(s.name)}
-                </label>`).join('');
-            wrap.innerHTML = `
-            <h4>${t?'Edit':'Add'} Template</h4>
-            <div class="sp-form-grid">
-                <div class="sp-form-field"><label>Template Name</label><input class="sp-input" id="sp_tName" value="${spEsc(t?.name||'')}" placeholder="Enter Template Name"></div>
-                <div class="sp-form-field"><label>Template ID <span style="color:#718096;font-size:0.75rem;">(Approved under DLT)</span></label><input class="sp-input" id="sp_tId" value="${spEsc(t?.templateId||'')}" placeholder="Enter Template ID"></div>
-                <div class="sp-form-field"><label>Sender ID</label>${senderOptions}<label style="display:flex;align-items:center;gap:0.5rem;"><input type="checkbox" id="sp_tSelAll"> Select All</label></div>
-                <div class="sp-form-field"><label>Message <span style="color:#e53e3e;">*</span></label><textarea class="sp-textarea" id="sp_tMsg" placeholder="Copy & Paste the template approved under DLT Portal">${spEsc(t?.message||'')}</textarea><div class="sp-form-hint">DLT-approved content must remain unchanged.</div></div>
-            </div>
-            <div style="display:flex;gap:0.75rem;margin-top:1rem;">
-                <button class="sp-btn-primary" onclick="spSaveTemplate('${id||''}')">💾 Submit</button>
-                <button class="sp-btn-secondary" onclick="document.getElementById('sp_templateFormWrap').style.display='none'">« Back</button>
-            </div>`;
-        }
-
-        function spBulkTemplate() {
-            const wrap = document.getElementById('sp_templateFormWrap');
-            if (!wrap) return;
-            wrap.style.display = 'block';
-            wrap.innerHTML = `
-            <h4>📦 DLT Templates – Bulk Upload</h4>
-            <p style="font-size:0.85rem;color:#718096;margin-bottom:1rem;">Upload a CSV file with columns: Template Name, Template ID, Sender ID, Template Content</p>
-            <div class="sp-form-field">
-                <label>Upload File <span style="color:#718096;font-size:0.75rem;">(CSV format only)</span></label>
-                <input type="file" class="sp-input" accept=".csv">
-            </div>
-            <button class="sp-btn-primary" style="margin-top:1rem;">⬆ Upload</button>
-            <button class="sp-btn-secondary" style="margin-top:1rem;" onclick="document.getElementById('sp_templateFormWrap').style.display='none'">Cancel</button>`;
-        }
-
-        function spSaveTemplate(id) {
-            const name = document.getElementById('sp_tName')?.value.trim();
-            const tid  = document.getElementById('sp_tId')?.value.trim();
-            const msg  = document.getElementById('sp_tMsg')?.value.trim();
-            if (!name||!tid||!msg) { alert('All fields are required.'); return; }
-            const checked = [...document.querySelectorAll('#sp_templateFormWrap input[type=checkbox]:checked')].map(c=>c.value).filter(v=>v!=='on').join(', ');
-            if (id) {
-                const t = SMS.data.templates.find(x=>x.id===id);
-                if (t) { t.name=name; t.templateId=tid; t.message=msg; t.senderId=checked; }
-            } else {
-                SMS.data.templates.push({ id:'T'+Date.now(), name, templateId:tid, senderId:checked, message:msg });
-            }
-            document.getElementById('sp_templateFormWrap').style.display='none';
-            const t = document.getElementById('sp_templateTable');
-            if (t) t.innerHTML = spRenderTemplateRows();
-        }
-
-        function spEditTemplate(id) { spShowAddTemplate(id); }
-        function spDeleteTemplate(id) {
-            if (!confirm('Delete this template?')) return;
-            SMS.data.templates = SMS.data.templates.filter(t=>t.id!==id);
-            const t = document.getElementById('sp_templateTable');
-            if (t) t.innerHTML = spRenderTemplateRows();
-        }
-
-        // ── Compose SMS ───────────────────────────────────────────────
-        function spCompose() {
-            const tOpts = SMS.data.templates.map(t=>`<option value="${spEsc(t.id)}">${spEsc(t.name)}</option>`).join('');
-            const sOpts = SMS.data.senderIds.map(s=>`<option value="${spEsc(s.name)}">${spEsc(s.name)}</option>`).join('');
-            const gOpts = SMS.data.groups.map(g=>`<label style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.4rem;font-size:0.85rem;"><input type="checkbox" value="${spEsc(g.id)}"> ${spEsc(g.name)} (${g.count})</label>`).join('');
-            return `
-            <div class="sp-compose-grid">
-                <div class="sp-card">
-                    <h4>✉️ Compose SMS</h4>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>Template</label>
-                        <select class="sp-select" id="sp_cTemplate" onchange="spLoadTemplate()">
-                            <option value="">- Select Template -</option>${tOpts}
-                        </select>
-                    </div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>Sender ID</label>
-                        <select class="sp-select" id="sp_cSender">
-                            <option value="">- Sender ID -</option>${sOpts}
-                        </select>
-                    </div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>Mobile Numbers <span style="color:#718096;font-size:0.75rem;">(+91 not required)</span></label>
-                        <textarea class="sp-textarea" id="sp_cMobiles" placeholder="Enter mobile numbers, one per line or comma separated" style="min-height:80px;"></textarea>
-                        <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                            <button class="sp-btn-sm" onclick="document.getElementById('sp_cMobiles').value=''">✕ Clear</button>
-                            <label class="sp-btn-sm" style="cursor:pointer;">📁 Upload CSV <input type="file" accept=".csv,.txt" style="display:none;"></label>
-                        </div>
-                    </div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>Message</label>
-                        <textarea class="sp-textarea" id="sp_cMessage" onkeyup="spUpdateCharCount()" placeholder="Select a template or type your message" style="min-height:100px;"></textarea>
-                        <div class="sp-char-counter">
-                            <span id="sp_charCount">0 Characters. 0 Credits.</span>
-                            <button class="sp-btn-sm" onclick="document.getElementById('sp_cMessage').value='';spUpdateCharCount()">Clear</button>
-                        </div>
-                    </div>
-                    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;align-items:center;">
-                        <div class="sp-form-field" style="flex:1;">
-                            <label>Language</label>
-                            <select class="sp-select"><option>English</option><option>Hindi</option><option>Telugu</option></select>
-                        </div>
-                        <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;cursor:pointer;margin-top:1.2rem;">
-                            <input type="checkbox"> Allow Duplicate Numbers
-                        </label>
-                    </div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
-                            <input type="checkbox" id="sp_schedule"> Schedule Campaign
-                        </label>
-                        <div id="sp_scheduleFields" style="display:none;margin-top:0.6rem;display:flex;gap:0.75rem;">
-                            <input type="date" class="sp-input" style="flex:1;">
-                            <input type="time" class="sp-input" style="flex:1;">
-                        </div>
-                    </div>
-                    <button class="sp-btn-primary" style="width:100%;justify-content:center;" onclick="spPreviewSMS()">👁 Preview & Send</button>
-                </div>
-                <div>
-                    <div class="sp-template-panel" style="margin-bottom:1rem;">
-                        <h5>📋 Templates</h5>
-                        ${SMS.data.templates.map(t=>`
-                        <div class="sp-template-item" onclick="spSelectTemplate('${spEsc(t.id)}')" title="${spEsc(t.message)}">
-                            📄 ${spEsc(t.name)}
-                        </div>`).join('')}
-                    </div>
-                    <div class="sp-template-panel">
-                        <h5>👥 Groups</h5>
-                        ${gOpts}
-                    </div>
-                </div>
-            </div>
-            <div id="sp_previewModal" style="display:none;"></div>`;
-        }
-
-        function spLoadTemplate() {
-            const sel = document.getElementById('sp_cTemplate');
-            const msg = document.getElementById('sp_cMessage');
-            if (!sel||!msg) return;
-            const t = SMS.data.templates.find(x=>x.id===sel.value);
-            if (t) { msg.value = t.message; spUpdateCharCount(); }
-        }
-
-        function spSelectTemplate(id) {
-            const t = SMS.data.templates.find(x=>x.id===id);
-            if (t) {
-                const sel = document.getElementById('sp_cTemplate');
-                const msg = document.getElementById('sp_cMessage');
-                if (sel) sel.value = id;
-                if (msg) { msg.value = t.message; spUpdateCharCount(); }
-                document.querySelectorAll('.sp-template-item').forEach(el => {
-                    el.classList.toggle('active', el.getAttribute('onclick')?.includes(id));
-                });
-            }
-        }
-
-        function spUpdateCharCount() {
-            const msg = document.getElementById('sp_cMessage');
-            const cnt = document.getElementById('sp_charCount');
-            if (!msg||!cnt) return;
-            const len = msg.value.length;
-            const credits = len === 0 ? 0 : Math.ceil(len / 160);
-            cnt.innerHTML = `${len} Characters. <span class="sp-credits">${credits} Credit${credits!==1?'s':''}.</span>`;
-        }
-
-        function spPreviewSMS() {
-            const mobiles = (document.getElementById('sp_cMobiles')?.value||'').split(/[,\n]/).map(s=>s.trim()).filter(Boolean);
-            const msg = document.getElementById('sp_cMessage')?.value || '';
-            const sender = document.getElementById('sp_cSender')?.value || '-';
-            if (!mobiles.length) { alert('Please enter at least one mobile number.'); return; }
-            if (!msg.trim()) { alert('Please enter or select a message.'); return; }
-            const modal = document.getElementById('sp_previewModal');
-            if (modal) {
-                modal.style.display = 'block';
-                modal.innerHTML = `
-                <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;">
-                    <div style="background:#fff;border-radius:16px;padding:2rem;max-width:700px;width:95%;max-height:85vh;overflow-y:auto;position:relative;">
-                        <button onclick="document.getElementById('sp_previewModal').style.display='none'" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.3rem;cursor:pointer;">✕</button>
-                        <h3 style="color:#1A1A72;margin-bottom:1rem;">📋 SMS Campaign Preview</h3>
-                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:0.9rem;">
-                            <b>Sender ID:</b> ${spEsc(sender)} &nbsp;|&nbsp; <b>Mobile Count:</b> ${mobiles.length} &nbsp;|&nbsp; <b>SMS Count:</b> ${mobiles.length}
-                        </div>
-                        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.8rem;margin-bottom:1rem;font-size:0.83rem;color:#92400e;">
-                            ℹ️ <b>Note:</b> Kindly send one test message on your number before sending bulk message.
-                        </div>
-                        <div class="sp-table-wrap"><table class="sp-preview-table">
-                            <thead><tr><th>Mobile</th><th>Message</th><th>Credits</th></tr></thead>
-                            <tbody>${mobiles.map(m=>`<tr><td>${spEsc(m)}</td><td style="font-size:0.82rem;">${spEsc(msg.substring(0,80))}...</td><td>1</td></tr>`).join('')}</tbody>
-                        </table></div>
-                        <div style="display:flex;gap:0.75rem;margin-top:1.5rem;justify-content:flex-end;">
-                            <button class="sp-btn-secondary" onclick="document.getElementById('sp_previewModal').style.display='none'">« Back</button>
-                            <button class="sp-btn-primary" onclick="spSendSMS()">📤 Send Campaign</button>
-                        </div>
-                    </div>
-                </div>`;
-            }
-        }
-
-        function spSendSMS() {
-            document.getElementById('sp_previewModal').style.display='none';
-            alert('✅ Campaign submitted successfully! Check SMS History for delivery status.');
-        }
-
-        // ── Customize SMS ─────────────────────────────────────────────
-        function spCustomize() {
-            return `
-            <div style="display:grid;grid-template-columns:1fr 300px;gap:1.5rem;">
-                <div class="sp-card">
-                    <div class="sp-card-header"><h4>📁 Files</h4><div style="display:flex;gap:0.5rem;"><button class="sp-btn-sm danger">🗑 Delete</button></div></div>
-                    <div class="sp-table-wrap"><table class="sp-table">
-                        <thead><tr><th>File Name</th><th>Time</th><th>Actions</th></tr></thead>
-                        <tbody id="sp_custFiles"><tr><td colspan="3" style="text-align:center;color:#718096;padding:1.5rem;">No data available</td></tr></tbody>
-                    </table></div>
-                </div>
-                <div class="sp-card">
-                    <h4>⚙️ Customize SMS</h4>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>File Name</label><input class="sp-input" id="sp_custFileName" placeholder="Please enter filename">
-                    </div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>Upload File <span style="color:#718096;font-size:0.75rem;">(.csv/.txt only)</span></label>
-                        <input type="file" class="sp-input" accept=".csv,.txt" id="sp_custFile">
-                    </div>
-                    <button class="sp-btn-primary" onclick="spUploadCustomFile()">⬆ Upload</button>
-                </div>
-            </div>
-            <div class="sp-card" id="sp_custSendPanel" style="display:none;">
-                <h4>✉️ Send Customize SMS</h4>
-                <div class="sp-form-grid">
-                    <div class="sp-form-field"><label>Template</label>
-                        <select class="sp-select">${SMS.data.templates.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>
-                    </div>
-                    <div class="sp-form-field"><label>Sender ID</label>
-                        <select class="sp-select">${SMS.data.senderIds.map(s=>`<option>${s.name}</option>`).join('')}</select>
-                    </div>
-                    <div class="sp-form-field"><label>Mobile Field</label><select class="sp-select"><option>Mobile Number</option></select></div>
-                    <div class="sp-form-field"><label>Language</label><select class="sp-select"><option>English</option><option>Hindi</option></select></div>
-                </div>
-                <div style="margin-top:1rem;">
-                    <p style="font-size:0.83rem;color:#718096;margin-bottom:0.5rem;">Click Fields to customize message with CSV columns:</p>
-                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                        <button class="sp-btn-sm success">Mobile Number</button>
-                        <button class="sp-btn-sm success">Customer Name</button>
-                        <button class="sp-btn-sm success">Account Name</button>
-                    </div>
-                </div>
-                <textarea class="sp-textarea" style="margin-top:1rem;min-height:80px;" placeholder="Message will be built by clicking fields above..."></textarea>
-                <button class="sp-btn-primary" style="margin-top:1rem;">👁 Preview & Send</button>
-            </div>`;
-        }
-
-        function spUploadCustomFile() {
-            const name = document.getElementById('sp_custFileName')?.value.trim();
-            const file = document.getElementById('sp_custFile')?.files[0];
-            if (!name) { alert('Please enter a file name.'); return; }
-            if (!file) { alert('Please select a file.'); return; }
-            const tbody = document.getElementById('sp_custFiles');
-            const now = new Date().toLocaleString('en-IN',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
-            if (tbody) tbody.innerHTML = `<tr><td><b>${spEsc(name)}</b></td><td style="color:#718096;">${now}</td><td><button class="sp-btn-sm success">📤 Send SMS</button> <button class="sp-btn-sm">⬇ Download</button> <button class="sp-btn-sm danger">🗑</button></td></tr>`;
-            document.getElementById('sp_custSendPanel').style.display='block';
-        }
-
-        // ── Excel SMS ─────────────────────────────────────────────────
-        function spExcelSms() {
-            return `
-            <div style="display:grid;grid-template-columns:1fr 300px;gap:1.5rem;">
-                <div class="sp-card">
-                    <div class="sp-card-header"><h4>📊 Files – Excel</h4></div>
-                    <div class="sp-table-wrap"><table class="sp-table">
-                        <thead><tr><th>File Name</th><th>Actions</th></tr></thead>
-                        <tbody><tr><td colspan="2" style="text-align:center;color:#718096;padding:1.5rem;">No data available</td></tr></tbody>
-                    </table></div>
-                </div>
-                <div class="sp-card">
-                    <h4>📊 Customize SMS – Excel</h4>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>File Name</label><input class="sp-input" placeholder="Please enter filename">
-                    </div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>Upload File <span style="color:#718096;font-size:0.75rem;">(.xls/.xlsx only)</span></label>
-                        <input type="file" class="sp-input" accept=".xls,.xlsx">
-                    </div>
-                    <button class="sp-btn-primary">⬆ Upload</button>
-                </div>
-            </div>`;
-        }
-
-        // ── SMS History ───────────────────────────────────────────────
-        function spSmsHistory() {
-            return `
-            <div style="margin-bottom:0.75rem;padding:0.8rem 1rem;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:0.83rem;color:#92400e;">
-                ⚠️ Please Click here for <a href="#" style="color:#1A1A72;font-weight:700;">Backup SMS Sent History</a>
-            </div>
-            <div class="sp-card">
-                <div class="sp-card-header">
-                    <h4>📜 Sent History</h4>
-                    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                        <input type="date" class="sp-input" style="width:140px;">
-                        <input type="date" class="sp-input" style="width:140px;">
-                        <input class="sp-input" placeholder="SenderID / Message / Template" style="width:200px;">
-                        <button class="sp-btn-sm">🔍</button>
-                        <button class="sp-btn-secondary">Campaign SMS</button>
-                        <button class="sp-btn-secondary">List SMS</button>
-                        <button class="sp-btn-sm">⬇</button>
-                    </div>
-                </div>
-                <div class="sp-table-wrap"><table class="sp-table">
-                    <thead><tr><th>Camp Details</th><th>Message</th><th>Mobile Count</th><th>SMS Count</th><th>Status</th><th>Date</th><th>Options</th></tr></thead>
-                    <tbody>${SMS.data.smsHistory.map(h=>`
-                    <tr>
-                        <td><b>${spEsc(h.camp)}</b><br><small style="color:#718096;">${spEsc(h.senderId)}</small></td>
-                        <td style="max-width:200px;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${spEsc(h.message)}</td>
-                        <td>${h.mobileCount}</td>
-                        <td>${h.smsCount}</td>
-                        <td><span class="sp-badge delivered">${spEsc(h.status)}</span></td>
-                        <td style="font-size:0.8rem;color:#718096;">${spEsc(h.date)}</td>
-                        <td>
-                            <button class="sp-btn-sm">👁 View</button>
-                            <button class="sp-btn-sm">⬇ Download</button>
-                            <button class="sp-btn-sm success">↩ Resend</button>
-                        </td>
-                    </tr>`).join('')}
-                    </tbody>
-                </table></div>
-            </div>`;
-        }
-
-        // ── API History ───────────────────────────────────────────────
-        function spApiHistory() {
-            return `
-            <div class="sp-card">
-                <div class="sp-card-header">
-                    <h4>🔌 API History</h4>
-                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                        <input type="date" class="sp-input" style="width:140px;">
-                        <input type="date" class="sp-input" style="width:140px;">
-                        <input class="sp-input" placeholder="Message / Mobile / Sender" style="width:180px;">
-                        <button class="sp-btn-sm">🔍</button>
-                        <a href="#" style="font-size:0.83rem;color:#1A1A72;font-weight:600;margin-left:0.5rem;align-self:center;">Click here for Backup</a>
-                        <button class="sp-btn-secondary" style="font-size:0.8rem;">Non-DLR SMS</button>
-                    </div>
-                </div>
-                <div class="sp-table-wrap"><table class="sp-table">
-                    <thead><tr><th>S.No</th><th>TID</th><th>Sender ID</th><th>Mobile</th><th>Message</th><th>Status</th><th>Gen Time</th><th>Dlv Time</th><th>Actions</th></tr></thead>
-                    <tbody>${SMS.data.apiHistory.map((h,i)=>`
-                    <tr>
-                        <td>${i+1}</td>
-                        <td style="font-size:0.78rem;">${spEsc(h.tid)}</td>
-                        <td>${spEsc(h.senderId)}</td>
-                        <td>${spEsc(h.mobile)}</td>
-                        <td style="max-width:180px;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${spEsc(h.message)}</td>
-                        <td><span class="sp-badge failed">${spEsc(h.status)}</span></td>
-                        <td style="font-size:0.78rem;color:#718096;">${spEsc(h.genTime)}</td>
-                        <td style="font-size:0.78rem;color:#718096;">${spEsc(h.dlvTime)}</td>
-                        <td><button class="sp-btn-sm">👁 View</button> <button class="sp-btn-sm">⬇</button></td>
-                    </tr>`).join('')}
-                    </tbody>
-                </table></div>
-            </div>`;
-        }
-
-        // ── Groups ────────────────────────────────────────────────────
-        function spGroups() {
-            return `
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
-                <div class="sp-card">
-                    <h4>➕ Create Group</h4>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>Group Name</label>
-                        <input class="sp-input" id="sp_newGroup" placeholder="Please enter Group Name">
-                    </div>
-                    <button class="sp-btn-primary" onclick="spAddGroup()">✅ Submit</button>
-                    <div id="sp_groupMsg" style="margin-top:0.5rem;font-size:0.85rem;"></div>
-                </div>
-                <div class="sp-card">
-                    <h4>📥 Import Contacts</h4>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>Select Group</label>
-                        <select class="sp-select" id="sp_importGroup">
-                            ${SMS.data.groups.map(g=>`<option value="${g.id}">${spEsc(g.name)}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;">
-                        <label>File Upload <span style="color:#718096;font-size:0.75rem;">(.csv/.txt only)</span></label>
-                        <input type="file" class="sp-input" accept=".csv,.txt">
-                    </div>
-                    <button class="sp-btn-primary">📥 Import Contacts</button>
-                </div>
-            </div>
-            <div class="sp-card">
-                <div class="sp-card-header">
-                    <h4>👥 List of Groups</h4>
-                    <div class="sp-search-wrap"><span class="sp-search-icon">🔍</span><input class="sp-search sp-input" placeholder="Search..."></div>
-                </div>
-                <div class="sp-table-wrap"><table class="sp-table">
-                    <thead><tr><th>Group</th><th>Edit</th><th>View</th><th>Send SMS</th><th>Download</th><th>Delete</th></tr></thead>
-                    <tbody id="sp_groupTable">${spRenderGroupRows()}</tbody>
-                </table></div>
-            </div>`;
-        }
-
-        function spRenderGroupRows() {
-            return SMS.data.groups.map(g=>`
-            <tr>
-                <td><b>${spEsc(g.name)}</b> <span style="color:#718096;font-size:0.8rem;">(${g.count})</span></td>
-                <td><button class="sp-btn-sm">✏ Edit</button></td>
-                <td><button class="sp-btn-sm" onclick="spViewGroup('${g.id}')">👁 View</button></td>
-                <td><button class="sp-btn-sm success" onclick="spNavigate('compose')">📤 Send SMS</button></td>
-                <td><button class="sp-btn-sm">⬇ Download</button></td>
-                <td><button class="sp-btn-sm danger" onclick="spDeleteGroup('${g.id}')">🗑 Delete</button></td>
-            </tr>`).join('');
-        }
-
-        function spAddGroup() {
-            const name = (document.getElementById('sp_newGroup')?.value||'').trim();
-            const msg = document.getElementById('sp_groupMsg');
-            if (!name) { if(msg) msg.innerHTML='<span style="color:#e53e3e;">❌ Please enter a group name.</span>'; return; }
-            if (SMS.data.groups.find(g=>g.name.toLowerCase()===name.toLowerCase())) {
-                if(msg) msg.innerHTML='<span style="color:#e53e3e;">❌ Group already exists.</span>'; return;
-            }
-            SMS.data.groups.push({ id:'G'+Date.now(), name, count:0 });
-            if(msg) msg.innerHTML='<span style="color:#22c55e;">✅ Group created successfully.</span>';
-            const t = document.getElementById('sp_groupTable');
-            if(t) t.innerHTML = spRenderGroupRows();
-            if(document.getElementById('sp_newGroup')) document.getElementById('sp_newGroup').value='';
-        }
-
-        function spDeleteGroup(id) {
-            if (!confirm('Delete this group?')) return;
-            SMS.data.groups = SMS.data.groups.filter(g=>g.id!==id);
-            const t = document.getElementById('sp_groupTable');
-            if(t) t.innerHTML = spRenderGroupRows();
-        }
-
-        function spViewGroup(id) {
-            const g = SMS.data.groups.find(x=>x.id===id);
-            alert(`Group: ${g?.name}\nContacts: ${g?.count}\n\nUse Import Contacts to add numbers.`);
-        }
-
-        // ── Credit History ────────────────────────────────────────────
-        function spCreditHistory() {
-            const totalCredited = SMS.data.creditHistory.reduce((s,r)=>s+(Number(r.credited)||0),0);
-            const totalDebited  = SMS.data.creditHistory.reduce((s,r)=>s+(Number(r.debited)||0),0);
-            return `
-            <div class="sp-credit-grid" style="margin-bottom:1.5rem;">
-                <div class="sp-stat-card green"><div class="sp-stat-icon">💰</div><div class="sp-stat-num">${totalCredited}</div><div class="sp-stat-label">Total Credited</div></div>
-                <div class="sp-stat-card red"><div class="sp-stat-icon">📤</div><div class="sp-stat-num">${totalDebited}</div><div class="sp-stat-label">Total Debited</div></div>
-            </div>
-            <div class="sp-card">
-                <div class="sp-card-header">
-                    <h4>💳 My Credit History</h4>
-                    <div style="display:flex;gap:0.5rem;">
-                        <input type="date" class="sp-input" style="width:140px;">
-                        <input type="date" class="sp-input" style="width:140px;">
-                        <button class="sp-btn-sm">🔍</button>
-                    </div>
-                </div>
-                <div class="sp-table-wrap"><table class="sp-table">
-                    <thead><tr><th>S.No</th><th>Date & Time</th><th style="color:#22c55e;">Credited</th><th style="color:#ef4444;">Debited</th></tr></thead>
-                    <tbody>${SMS.data.creditHistory.map(r=>`
-                    <tr>
-                        <td>${r.sno}</td>
-                        <td style="color:#718096;font-size:0.83rem;">${spEsc(r.date)}</td>
-                        <td style="color:#22c55e;font-weight:700;">${r.credited||''}</td>
-                        <td style="color:#ef4444;font-weight:700;">${r.debited||''}</td>
-                    </tr>`).join('')}
-                    </tbody>
-                </table></div>
-            </div>`;
-        }
-
-        // ── Activity Log ──────────────────────────────────────────────
-        function spActivityLog() {
-            const iconMap = { login:'🔑', logout:'🚪', credits:'💰', dlt_template:'📋' };
-            return `
-            <div class="sp-card">
-                <div class="sp-card-header">
-                    <h4>📝 Activity Log</h4>
-                    <div style="display:flex;gap:0.5rem;">
-                        <input type="date" class="sp-input" style="width:140px;">
-                        <input class="sp-input" placeholder="Search..." style="width:160px;">
-                        <button class="sp-btn-sm">🔍</button>
-                        <button class="sp-btn-sm">⬇</button>
-                    </div>
-                </div>
-                <div class="sp-table-wrap"><table class="sp-table">
-                    <thead><tr><th>User</th><th>Type</th><th>Activity</th><th>Date & Time</th></tr></thead>
-                    <tbody>${SMS.data.activityLog.map(a=>`
-                    <tr>
-                        <td><b>${spEsc(a.user)}</b></td>
-                        <td><span class="sp-badge ${a.type==='login'?'approved':a.type==='logout'?'pending':a.type==='credits'?'new':'delivered'}">${iconMap[a.type]||'📌'} ${spEsc(a.type)}</span></td>
-                        <td style="font-size:0.85rem;">${spEsc(a.action)}</td>
-                        <td style="font-size:0.8rem;color:#718096;">${spEsc(a.date)}</td>
-                    </tr>`).join('')}
-                    </tbody>
-                </table></div>
-            </div>`;
-        }
-
-        // ── HTTP API ──────────────────────────────────────────────────
-        function spHttpApi() {
-            return `
-            <div class="sp-card" style="margin-bottom:1.5rem;">
-                <h4>🔑 Generate API Key</h4>
-                <div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
-                    <div class="sp-form-field" style="flex:1;">
-                        <label>API Key</label>
-                        <input class="sp-input" id="sp_apiKey" value="7c59bdf68a2fc9c07220" readonly>
-                    </div>
-                    <button class="sp-btn-primary" onclick="spGenerateApiKey()">🔄 Generate API Key</button>
-                </div>
-                <p style="font-size:0.8rem;color:#e53e3e;margin-top:0.5rem;">⚠️ Please make sure before changing the key. If you change the key it might impact in API integrations in your applications.</p>
-                <p style="font-size:0.82rem;color:#718096;margin-top:0.4rem;">Note: You can send request 500 SMS in single API Call.</p>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
-                <div class="sp-card">
-                    <h4>🔌 HTTP API Reference</h4>
-                    <div style="margin-bottom:1rem;">
-                        <p style="font-weight:600;color:#1A1A72;margin-bottom:0.3rem;">Q. What is an API?</p>
-                        <p style="font-size:0.85rem;color:#718096;">A. Application Programming Interface.</p>
-                    </div>
-                    <div style="margin-bottom:1rem;">
-                        <p style="font-weight:600;color:#1A1A72;margin-bottom:0.3rem;">Q. How can I use the API to send SMS?</p>
-                        <div class="sp-code-block" style="font-size:0.72rem;">
-                            <button class="sp-code-copy" onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent)">Copy</button>
-                            <pre>https://smslogin.co/v3/api.php?<span class="sp-code-kw">username</span>=<span class="sp-code-val">LEONAS1</span>&<span class="sp-code-kw">apikey</span>=<span class="sp-code-val">7c59bdf68a2fc9c07220</span>&<span class="sp-code-kw">senderid</span>=<span class="sp-code-val">LEONAS</span>&<span class="sp-code-kw">mobile</span>=<span class="sp-code-val">9876543210</span>&<span class="sp-code-kw">message</span>=<span class="sp-code-val">Hello</span>&<span class="sp-code-kw">templateid</span>=<span class="sp-code-val">1707162669274476612</span></pre>
-                        </div>
-                    </div>
-                    <div style="margin-bottom:1rem;">
-                        <p style="font-weight:600;color:#1A1A72;margin-bottom:0.3rem;">Q. How to send multiple messages?</p>
-                        <p style="font-size:0.83rem;color:#718096;">A. Separate multiple mobile numbers with comma ","</p>
-                    </div>
-                    <div>
-                        <p style="font-weight:600;color:#1A1A72;margin-bottom:0.3rem;">Q. How can I get Delivery Reports?</p>
-                        <div class="sp-code-block" style="font-size:0.72rem;">
-                            <button class="sp-code-copy" onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent)">Copy</button>
-                            <pre>https://smslogin.co/v3/api.php?<span class="sp-code-kw">username</span>=<span class="sp-code-val">LEONAS1</span>&<span class="sp-code-kw">apikey</span>=<span class="sp-code-val">7c59bdf68a2fc9c07220</span>&<span class="sp-code-kw">campid</span>=<span class="sp-code-val">417a2b098442ba35</span></pre>
-                        </div>
-                    </div>
-                </div>
-                <div class="sp-card">
-                    <h4>🧪 Test Your API</h4>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>Template</label>
-                        <select class="sp-select">${SMS.data.templates.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>
-                    </div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>Sender ID</label>
-                        <select class="sp-select">${SMS.data.senderIds.map(s=>`<option>${s.name}</option>`).join('')}</select>
-                    </div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>Username</label><input class="sp-input" value="LEONAS1" readonly></div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>API Key</label><input class="sp-input" id="sp_testApiKey" value="7c59bdf68a2fc9c07220" readonly></div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>Mobile</label><input class="sp-input" placeholder="Enter your mobile number"></div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>Message</label><textarea class="sp-textarea" placeholder="Please enter message here&#10;Note: Remove all {#var#} text and replace with generalized text" style="min-height:80px;"></textarea></div>
-                    <button class="sp-btn-primary" onclick="spGenerateApiCode()">⚡ Generate API Code</button>
-                    <div id="sp_apiCodeResult" style="margin-top:1rem;"></div>
-                </div>
-            </div>`;
-        }
-
-        function spGenerateApiKey() {
-            const chars = 'abcdef0123456789';
-            const key = Array.from({length:20},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
-            const inp = document.getElementById('sp_apiKey');
-            if (inp) inp.value = key;
-        }
-
-        function spGenerateApiCode() {
-            const result = document.getElementById('sp_apiCodeResult');
-            if (result) result.innerHTML = `
-            <div class="sp-code-block">
-                <button class="sp-code-copy">Copy</button>
-                <pre><span class="sp-code-comment">// Generated API URL</span>
-https://smslogin.co/v3/api.php?<span class="sp-code-kw">username</span>=<span class="sp-code-val">LEONAS1</span>&amp;<span class="sp-code-kw">apikey</span>=<span class="sp-code-val">7c59bdf68a2fc9c07220</span>&amp;<span class="sp-code-kw">senderid</span>=<span class="sp-code-val">LEONAS</span>&amp;<span class="sp-code-kw">mobile</span>=<span class="sp-code-val">XXXXXXXXXX</span>&amp;<span class="sp-code-kw">message</span>=<span class="sp-code-val">Your+message+here</span>&amp;<span class="sp-code-kw">templateid</span>=<span class="sp-code-val">1707162669274476612</span></pre>
-            </div>
-            <button class="sp-btn-secondary" style="margin-top:0.75rem;width:100%;justify-content:center;">🧪 Test API Code</button>`;
-        }
-
-        // ── XML API ───────────────────────────────────────────────────
-        function spXmlApi() {
-            return `
-            <div class="sp-card">
-                <h4>🔧 XML API Reference</h4>
-                <p style="font-size:0.9rem;color:#718096;margin-bottom:1.5rem;">Use the XML API to integrate SMS functionality into your applications.</p>
-                <div class="sp-code-block">
-                    <button class="sp-code-copy">Copy</button>
-                    <pre><span class="sp-code-comment">&lt;!-- XML API Request Example --&gt;</span>
-<span class="sp-code-kw">&lt;message&gt;</span>
-  <span class="sp-code-kw">&lt;authkey&gt;</span><span class="sp-code-val">YOUR_AUTH_KEY</span><span class="sp-code-kw">&lt;/authkey&gt;</span>
-  <span class="sp-code-kw">&lt;sender&gt;</span><span class="sp-code-val">LEONAS</span><span class="sp-code-kw">&lt;/sender&gt;</span>
-  <span class="sp-code-kw">&lt;route&gt;</span><span class="sp-code-val">4</span><span class="sp-code-kw">&lt;/route&gt;</span>
-  <span class="sp-code-kw">&lt;country&gt;</span><span class="sp-code-val">91</span><span class="sp-code-kw">&lt;/country&gt;</span>
-  <span class="sp-code-kw">&lt;sms text="</span><span class="sp-code-val">Your message here</span><span class="sp-code-kw">"&gt;</span>
-    <span class="sp-code-kw">&lt;to&gt;</span><span class="sp-code-val">9876543210</span><span class="sp-code-kw">&lt;/to&gt;</span>
-  <span class="sp-code-kw">&lt;/sms&gt;</span>
-<span class="sp-code-kw">&lt;/message&gt;</span></pre>
-                </div>
-            </div>`;
-        }
-
-        // ── Short URL ─────────────────────────────────────────────────
-        function spShortUrl() {
-            return `
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
-                <div class="sp-card">
-                    <h4>🗂 Short URL – File</h4>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>Name</label><input class="sp-input" placeholder="Enter Name"></div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>File <span style="color:#718096;font-size:0.75rem;">(jpg/png/pdf)</span></label><input type="file" class="sp-input" accept=".jpg,.png,.pdf"></div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>Customized URL <span style="color:#718096;font-size:0.75rem;">(optional)</span></label>
-                        <div style="display:flex;gap:0.5rem;align-items:center;"><span style="font-size:0.83rem;color:#718096;white-space:nowrap;">https://stiny.in?</span><input class="sp-input" placeholder="alpha-numeric only"></div>
-                    </div>
-                    <button class="sp-btn-primary">✨ Generate</button>
-                </div>
-                <div class="sp-card">
-                    <h4>🔗 Short URL – URL</h4>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>Name</label><input class="sp-input" placeholder="Enter Name"></div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>URL</label><textarea class="sp-textarea" style="min-height:80px;" placeholder="Enter the long URL to shorten"></textarea></div>
-                    <div class="sp-form-field" style="margin-bottom:1rem;"><label>Customized URL <span style="color:#718096;font-size:0.75rem;">(optional)</span></label>
-                        <div style="display:flex;gap:0.5rem;align-items:center;"><span style="font-size:0.83rem;color:#718096;white-space:nowrap;">https://stiny.in?</span><input class="sp-input" placeholder="alpha-numeric only"></div>
-                    </div>
-                    <button class="sp-btn-primary">✨ Generate</button>
-                </div>
-            </div>
-            <div class="sp-card">
-                <div class="sp-card-header">
-                    <h4>📋 URL List</h4>
-                    <div class="sp-search-wrap"><span class="sp-search-icon">🔍</span><input class="sp-search sp-input" placeholder="Search..."></div>
-                </div>
-                <div class="sp-table-wrap"><table class="sp-table">
-                    <thead><tr><th>S.No</th><th>Name</th><th>Original URL</th><th>Short URL</th><th>Count</th><th>Date & Time</th><th>Delete</th></tr></thead>
-                    <tbody>${SMS.data.shortUrls.length ? '' : '<tr><td colspan="7" style="text-align:center;color:#718096;padding:1.5rem;">No short URLs created yet</td></tr>'}</tbody>
-                </table></div>
-                <p style="font-size:0.82rem;color:#718096;margin-top:0.75rem;">The number of link clicks can be viewed under <b>Count</b>. Images/videos/long URLs can be converted to short URLs.</p>
-            </div>`;
-        }
-
-        // ── Bootstrap renderSMSPortal when page shown ──────────────────
-        function initSMSPortal() {
-            SMS.activeModule = 'dashboard';
-            renderSMSPortal();
-        }
-
-        window.initSMSPortal    = initSMSPortal;
-        window.renderSMSPortal  = renderSMSPortal;
-        window.spNavigate       = spNavigate;
-        window.spOpenSidebar    = spOpenSidebar;
-        window.spCloseSidebar   = spCloseSidebar;
-        window.spToggleNotif    = spToggleNotif;
-        window.spAddSenderId    = spAddSenderId;
-        window.spDeleteSender   = spDeleteSender;
-        window.spShowAddTemplate= spShowAddTemplate;
-        window.spBulkTemplate   = spBulkTemplate;
-        window.spSaveTemplate   = spSaveTemplate;
-        window.spEditTemplate   = spEditTemplate;
-        window.spDeleteTemplate = spDeleteTemplate;
-        window.spLoadTemplate   = spLoadTemplate;
-        window.spSelectTemplate = spSelectTemplate;
-        window.spUpdateCharCount= spUpdateCharCount;
-        window.spPreviewSMS     = spPreviewSMS;
-        window.spSendSMS        = spSendSMS;
-        window.spUploadCustomFile= spUploadCustomFile;
-        window.spAddGroup       = spAddGroup;
-        window.spDeleteGroup    = spDeleteGroup;
-        window.spViewGroup      = spViewGroup;
-        window.spGenerateApiKey = spGenerateApiKey;
-        window.spGenerateApiCode= spGenerateApiCode;
-
         window.adminLogin = adminLogin;
         window.userLogin  = userLogin;
         window.hrmsLogout = hrmsLogout;
 
-        // ── Mobile Nav Auth State Sync ─────────────────────────────────────
+        // ── Portal Dropdown Toggle ─────────────────────────────────────────
+        function togglePortalDropdown() {
+            var btn = document.getElementById('portalLauncherBtn');
+            var dd  = document.getElementById('portalDropdown');
+            if (!btn || !dd) return;
+            var isOpen = dd.classList.contains('open');
+            dd.classList.toggle('open', !isOpen);
+            btn.classList.toggle('open', !isOpen);
+        }
+        window.togglePortalDropdown = togglePortalDropdown;
+
+        // Close portal dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.nav-portal-launcher')) {
+                var dd  = document.getElementById('portalDropdown');
+                var btn = document.getElementById('portalLauncherBtn');
+                if (dd)  dd.classList.remove('open');
+                if (btn) btn.classList.remove('open');
+            }
+        });
+
+        // ── Desktop + Mobile Nav Auth State Sync ──────────────────────────
         function updateMobileNav() {
-            var loginBtn  = document.getElementById('mobileLoginBtn');
-            var logoutBtn = document.getElementById('mobileLogoutBtn');
-            if (!loginBtn || !logoutBtn) return;
+            // Mobile
+            var loginBtn      = document.getElementById('mobileLoginBtn');
+            var mobilePortals = document.getElementById('mobilePortalBtns');
+            var logoutBtn     = document.getElementById('mobileLogoutBtn');
+            // Desktop
+            var navLoginBtn   = document.getElementById('navLoginBtn');
+            var navLauncher   = document.getElementById('navPortalLauncher');
+            var userLabel     = document.getElementById('portalUserLabel');
+
             if (HRMS.currentUser) {
-                loginBtn.style.display  = 'none';
-                logoutBtn.style.display = 'block';
-                logoutBtn.textContent   = '⬅ Logout (' + (HRMS.currentUser.name || '') + ')';
+                var name = HRMS.currentUser.name || HRMS.currentUser.username || '';
+                // Mobile: hide Login btn, show portal buttons block
+                if (loginBtn)      loginBtn.style.display      = 'none';
+                if (mobilePortals) {
+                    mobilePortals.style.display     = 'flex';
+                    mobilePortals.style.flexDirection = 'column';
+                    mobilePortals.style.gap          = '0.6rem';
+                    mobilePortals.style.width        = '100%';
+                }
+                // Desktop: hide Login btn, show launcher
+                if (navLoginBtn)   navLoginBtn.style.display   = 'none';
+                if (navLauncher)   navLauncher.style.display   = 'block';
+                if (userLabel && name) userLabel.textContent = name.split(' ')[0];
             } else {
-                loginBtn.style.display  = 'block';
-                logoutBtn.style.display = 'none';
+                // Mobile
+                if (loginBtn)      loginBtn.style.display      = 'block';
+                if (mobilePortals) mobilePortals.style.display = 'none';
+                if (logoutBtn)     logoutBtn.style.display     = 'none';
+                // Desktop
+                if (navLoginBtn)   navLoginBtn.style.display   = 'inline-flex';
+                if (navLauncher)   navLauncher.style.display   = 'none';
+                // Close dropdown if open
+                var dd = document.getElementById('portalDropdown');
+                var lb = document.getElementById('portalLauncherBtn');
+                if (dd)  dd.classList.remove('open');
+                if (lb)  lb.classList.remove('open');
             }
         }
         window.updateMobileNav = updateMobileNav;
@@ -6429,6 +5509,14 @@ https://smslogin.co/v3/api.php?<span class="sp-code-kw">username</span>=<span cl
               + '<div class="hrms-form-field"><label>YouTube URL</label><input id="wc_youtube" placeholder="https://youtube.com/@yourchannel" value="' + escapeHTML(c.youtube_url||'') + '"></div>'
               + '</div></div>'
 
+              + '<div class="hrms-card" style="margin-bottom:1.2rem;">'
+              + '<h4 style="color:#66D12F;margin-bottom:0.4rem;">🔗 Portal URLs</h4>'
+              + '<p style="color:#9aa5b4;font-size:0.85rem;margin-bottom:1rem;">These URLs appear on the Login page and in the logged-in portal launcher. Update them here whenever you redeploy a portal to a new address — no code change needed.</p>'
+              + '<div class="hrms-form-grid">'
+              + '<div class="hrms-form-field" style="grid-column:1/-1"><label>SMS Portal URL</label><input id="wc_sms_portal_url" placeholder="https://your-sms-portal.example.com" value="' + escapeHTML(c.sms_portal_url || '/sms-portal.html') + '"></div>'
+              + '<div class="hrms-form-field" style="grid-column:1/-1"><label>Voice Agent URL</label><input id="wc_voice_agent_url" placeholder="https://your-voice-agent.example.com/login" value="' + escapeHTML(c.voice_agent_url || 'https://voice-agent-3mph.onrender.com/login') + '"></div>'
+              + '</div></div>'
+
               + '<div style="display:flex;gap:1rem;align-items:center;">'
               + '<button class="hrms-btn-primary" onclick="saveWebsiteContent()">💾 Save & Apply to Website</button>'
               + '<span id="wc_saved" style="color:#48bb78;font-size:0.85rem;display:none;">✅ Saved & applied!</span>'
@@ -6463,7 +5551,9 @@ https://smslogin.co/v3/api.php?<span class="sp-code-kw">username</span>=<span cl
                 facebook_url:     normalizeUrl(document.getElementById('wc_facebook')?.value),
                 instagram_url:    normalizeUrl(document.getElementById('wc_instagram')?.value),
                 linkedin_url:     normalizeUrl(document.getElementById('wc_linkedin')?.value),
-                youtube_url:      normalizeUrl(document.getElementById('wc_youtube')?.value)
+                youtube_url:      normalizeUrl(document.getElementById('wc_youtube')?.value),
+                sms_portal_url:   normalizeUrl(document.getElementById('wc_sms_portal_url')?.value) || '/sms-portal.html',
+                voice_agent_url:  normalizeUrl(document.getElementById('wc_voice_agent_url')?.value) || 'https://voice-agent-3mph.onrender.com/login'
             };
             try {
                 var saved = await apiFetch('/site-content', { method: 'PUT', body: c });
@@ -6526,6 +5616,19 @@ https://smslogin.co/v3/api.php?<span class="sp-code-kw">username</span>=<span cl
              ['social-youtube', c.youtube_url]].forEach(function(pair) {
                 var el = document.getElementById(pair[0]);
                 if (el && pair[1]) el.href = pair[1];
+            });
+
+            // Portal URLs — update all six anchor tags that point to the portals.
+            // Each has a stable id added when the login-page buttons were built.
+            var smsUrl   = c.sms_portal_url  || '/sms-portal.html';
+            var voiceUrl = c.voice_agent_url || 'https://voice-agent-3mph.onrender.com/login';
+            ['navDropSmsPortal', 'mobSmsPortal', 'loginSmsPortal'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.href = smsUrl;
+            });
+            ['navDropVoiceAgent', 'mobVoiceAgent', 'loginVoiceAgent'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.href = voiceUrl;
             });
         }
 
