@@ -3960,7 +3960,7 @@
                         <div class="login-fields" id="adminFields" style="display:none;">
                             <div class="login-field">
                                 <label>User ID</label>
-                                <input type="text" placeholder="Enter admin user ID" autocomplete="username">
+                                <input type="text" id="adminUID" placeholder="Enter admin user ID" autocomplete="username">
                             </div>
                             <div class="login-field">
                                 <label>Password</label>
@@ -3988,7 +3988,7 @@
                         <div class="login-fields" id="userFields" style="display:none;">
                             <div class="login-field">
                                 <label>User ID</label>
-                                <input type="text" placeholder="Enter your user ID" autocomplete="username">
+                                <input type="text" id="userUID" placeholder="Enter your user ID" autocomplete="username">
                             </div>
                             <div class="login-field">
                                 <label>Password</label>
@@ -4512,7 +4512,7 @@
 
         // ── Auth ──────────────────────────────────────────────────────────
         async function adminLogin() {
-            const uid = document.querySelector('#adminFields input[type="text"]').value.trim();
+            const uid = document.getElementById('adminUID').value.trim();
             const pwd = document.getElementById('adminPass').value.trim();
             if (!uid || !pwd) { alert('Please enter User ID and Password.'); return; }
             let result;
@@ -4524,14 +4524,14 @@
             resetSessionTimer();
             HRMS.activeModule = 'dashboard';
             closeLoginCard('adminCard','adminFields');
-            document.querySelector('#adminFields input[type="text"]').value = '';
+            document.getElementById('adminUID').value = '';
             document.getElementById('adminPass').value = '';
             updateMobileNav();
             showLoadingThen(async () => { await loadHRMSData(); showPage('hrms'); renderHRMS(); });
         }
 
         async function userLogin() {
-            const uid = document.querySelector('#userFields input[type="text"]').value.trim();
+            const uid = document.getElementById('userUID').value.trim();
             const pwd = document.getElementById('userPass').value.trim();
             if (!uid || !pwd) { alert('Please enter User ID and Password.'); return; }
             let result;
@@ -4543,7 +4543,7 @@
             resetSessionTimer();
             HRMS.activeModule = 'dashboard';
             closeLoginCard('userCard','userFields');
-            document.querySelector('#userFields input[type="text"]').value = '';
+            document.getElementById('userUID').value = '';
             document.getElementById('userPass').value = '';
             updateMobileNav();
             showLoadingThen(async () => { await loadHRMSData(); showPage('hrms'); renderHRMS(); });
