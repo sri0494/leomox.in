@@ -1,74 +1,109 @@
-// ============================================================================
-// server.js — LeoMox IT Solutions backend (Express + Neon Postgres)
-// ============================================================================
+'use strict';
 require('dotenv').config();
-require('express-async-errors'); // patches Express so rejected promises in async route handlers reach the error middleware below instead of crashing the process
-const path = require('path');
-const express = require('express');
-const cookieParser = require('cookie-parser');
-const helmet = require('helmet');
-const cors = require('cors');
+
+const express   = require('express');
+const path      = require('path');
+const helmet    = require('helmet');
+const cors      = require('cors');
 const rateLimit = require('express-rate-limit');
+const { sql }   = require('./db');
 
-const { attachUser } = require('./middleware/auth');
-const authRoutes = require('./routes/auth.routes');
-const employeesRoutes = require('./routes/employees.routes');
-const usersRoutes = require('./routes/users.routes');
-const attendanceRoutes = require('./routes/attendance.routes');
-const invoicesRoutes = require('./routes/invoices.routes');
-const siteContentRoutes = require('./routes/siteContent.routes');
-const contactRoutes = require('./routes/contact.routes');
-const bootstrapRoutes = require('./routes/bootstrap.routes');
-
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
-const isProd = process.env.NODE_ENV === 'production';
 
-app.set('trust proxy', 1); // needed for correct req.ip behind Render/Railway/etc. proxies
-
+/* ── Security ──────────────────────────────────────────────────────────────── */
 app.use(helmet({
-    contentSecurityPolicy: false // the frontend inlines <script>/<style>; enable & tune this once you split assets out
+  contentSecurityPolicy:      false,  // index.html uses inline scripts/styles
+  crossOriginEmbedderPolicy:  false,
 }));
+
+/* ── CORS ──────────────────────────────────────────────────────────────────── */
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || true,
-    credentials: true
-}));
-app.use(express.json({ limit: '1mb' }));
-app.use(cookieParser());
-app.use(attachUser);
-
-// Generic API rate limit as a baseline, on top of the stricter per-route
-// limits already applied to /auth/login and /contact.
-app.use('/api', rateLimit({
-    windowMs: 60 * 1000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin))
+      cb(null, true);
+    else
+      cb(new Error('CORS: origin not allowed — ' + origin));
+  },
+  credentials: true,
 }));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/employees', employeesRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/invoices', invoicesRoutes);
-app.use('/api/site-content', siteContentRoutes);
-app.use('/api/contact', contactRoutes);
-app.use('/api/bootstrap', bootstrapRoutes);
+/* ── Body parsing ──────────────────────────────────────────────────────────── */
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-app.get('/api/health', (req, res) => res.json({ ok: true, env: isProd ? 'production' : 'development' }));
+/* ── Rate limiting ─────────────────────────────────────────────────────────── */
+app.use('/api/auth/login', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts — please wait 15 minutes.' },
+}));
 
-// Static frontend
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use('/api/', rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  message: { error: 'Too many requests — slow down.' },
+}));
+
+/* ── API Routes ────────────────────────────────────────────────────────────── */
+app.use('/api/auth',         require('./routes/auth.routes'));
+app.use('/api/users',        require('./routes/users.routes'));
+app.use('/api/employees',    require('./routes/employees.routes'));
+app.use('/api/attendance',   require('./routes/attendance.routes'));
+app.use('/api/invoices',     require('./routes/invoices.routes'));
+app.use('/api/contact',      require('./routes/contact.routes'));
+app.use('/api/site-content', require('./routes/siteContent.routes'));
+
+/* ── Bootstrap ─────────────────────────────────────────────────────────────
+   Called by loadHRMSData() after login.
+   Must return: { employees, users, invoices, siteContent }
+   ─────────────────────────────────────────────────────────────────────────── */
+const { requireAuth } = require('./middleware/auth');
+
+app.get('/api/bootstrap', requireAuth, async (req, res) => {
+  try {
+    const [employees, users, invoices, sc] = await Promise.all([
+      sql`SELECT * FROM employees ORDER BY created_at DESC`,
+      sql`SELECT id, name, role, active, created_at FROM users ORDER BY created_at DESC`,
+      sql`SELECT * FROM invoices ORDER BY created_at DESC`,
+      sql`SELECT value FROM site_content WHERE key = 'main'`,
+    ]);
+    res.json({
+      employees,
+      users,
+      invoices,
+      siteContent: sc[0] ? sc[0].value : {},
+    });
+  } catch (err) {
+    console.error('Bootstrap error:', err);
+    res.status(500).json({ error: 'Bootstrap failed' });
+  }
+});
+
+/* ── Static files (public/) ────────────────────────────────────────────────── */
+const publicDir = path.join(__dirname, '..', 'public');
+app.use(express.static(publicDir, {
+  maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+  etag:   true,
+}));
+
+/* ── SPA catch-all ─────────────────────────────────────────────────────────── */
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  res.sendFile(path.join(publicDir, 'index.html'));
 });
 
-// Central error handler — never leak stack traces to the client.
-app.use((err, req, res, next) => {
-    console.error(err);
-    res.status(err.status || 500).json({ error: isProd ? 'Something went wrong.' : err.message });
+/* ── Global error handler ──────────────────────────────────────────────────── */
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
+/* ── Start ─────────────────────────────────────────────────────────────────── */
 app.listen(PORT, () => {
-    console.log(`LeoMox server listening on port ${PORT} (${isProd ? 'production' : 'development'})`);
+  console.log(`🚀  LeoMox running → http://localhost:${PORT}`);
+  console.log(`    NODE_ENV : ${process.env.NODE_ENV || 'development'}`);
+  console.log(`    DB       : ${process.env.DATABASE_URL ? 'connected' : '⚠ DATABASE_URL not set'}`);
 });

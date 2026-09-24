@@ -1,47 +1,38 @@
-// ============================================================================
-// routes/siteContent.routes.js — public homepage copy, editable by admins.
-// ============================================================================
+'use strict';
 const express = require('express');
-const { pool } = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { sql } = require('../db');
+const { requireAdmin } = require('../middleware/auth');
+const router  = express.Router();
 
-const router = express.Router();
+const KEY = 'main';
 
-// Public — the homepage needs this without being logged in.
+/* GET /api/site-content — PUBLIC: fetched on page load */
 router.get('/', async (req, res) => {
-    const { rows } = await pool.query('SELECT key, value FROM site_content');
-    const content = {};
-    rows.forEach(r => { content[r.key] = r.value; });
-    res.json(content);
+  try {
+    const [row] = await sql`SELECT value FROM site_content WHERE key = ${KEY}`;
+    res.json(row ? row.value : {});
+  } catch (err) {
+    console.error('site-content GET error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
-router.put('/', requireAuth, requireRole('admin', 'manager'), async (req, res) => {
-    const updates = req.body || {};
-    const keys = Object.keys(updates);
-    if (keys.length === 0) return res.status(400).json({ error: 'No fields provided.' });
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        for (const key of keys) {
-            await client.query(
-                `INSERT INTO site_content (key, value) VALUES ($1,$2)
-                 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-                [key, String(updates[key] ?? '')]
-            );
-        }
-        await client.query('COMMIT');
-    } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
-    } finally {
-        client.release();
-    }
-
-    const { rows } = await pool.query('SELECT key, value FROM site_content');
-    const content = {};
-    rows.forEach(r => { content[r.key] = r.value; });
-    res.json(content);
+/* PUT /api/site-content — ADMIN only */
+router.put('/', requireAdmin, async (req, res) => {
+  try {
+    const content = req.body;
+    const [row] = await sql`
+      INSERT INTO site_content (key, value, updated_at)
+      VALUES (${KEY}, ${JSON.stringify(content)}, NOW())
+      ON CONFLICT (key)
+        DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      RETURNING value
+    `;
+    res.json(row.value);
+  } catch (err) {
+    console.error('site-content PUT error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 module.exports = router;

@@ -1,55 +1,74 @@
-// ============================================================================
-// routes/employees.routes.js
-// ============================================================================
+'use strict';
 const express = require('express');
-const { pool } = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { sql } = require('../db');
+const { requireAuth, requireHR } = require('../middleware/auth');
+const router  = express.Router();
 
-const router = express.Router();
-
-function nextEmployeeId(rows) {
-    const nums = rows.map(r => parseInt(String(r.id).replace(/\D/g, ''), 10)).filter(n => !isNaN(n));
-    const next = (nums.length ? Math.max(...nums) : 0) + 1;
-    return 'EMP' + String(next).padStart(3, '0');
-}
-
-// All HRMS roles can view employees
+/* GET /api/employees */
 router.get('/', requireAuth, async (req, res) => {
-    const { rows } = await pool.query('SELECT * FROM employees ORDER BY id');
+  try {
+    const rows = await sql`SELECT * FROM employees ORDER BY created_at DESC`;
     res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// Only admin/manager/hr can create or edit employees
-router.post('/', requireAuth, requireRole('admin', 'manager', 'hr'), async (req, res) => {
-    const { name, dept, designation, phone, email, salary, joined, status } = req.body || {};
-    if (!name) return res.status(400).json({ error: 'Name is required.' });
-
-    const { rows: existing } = await pool.query('SELECT id FROM employees');
-    const id = nextEmployeeId(existing);
-
-    const { rows } = await pool.query(
-        `INSERT INTO employees (id, name, dept, designation, phone, email, salary, joined, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-        [id, name, dept || '', designation || '', phone || '', email || '', salary || 0, joined || null, status || 'Active']
-    );
-    res.status(201).json(rows[0]);
+/* POST /api/employees */
+router.post('/', requireHR, async (req, res) => {
+  try {
+    const { name, dept, designation, phone, email, salary, joined, status } = req.body;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const [row] = await sql`
+      INSERT INTO employees (name, dept, designation, phone, email, salary, joined, status)
+      VALUES (
+        ${name},
+        ${dept        || null},
+        ${designation || null},
+        ${phone       || null},
+        ${email       || null},
+        ${salary      || 0},
+        ${joined      || null},
+        ${status      || 'Active'}
+      )
+      RETURNING *
+    `;
+    res.status(201).json(row);
+  } catch (err) {
+    console.error('Employee POST error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
-router.put('/:id', requireAuth, requireRole('admin', 'manager', 'hr'), async (req, res) => {
-    const { name, dept, designation, phone, email, salary, joined, status } = req.body || {};
-    const { rows } = await pool.query(
-        `UPDATE employees SET name=$1, dept=$2, designation=$3, phone=$4, email=$5,
-            salary=$6, joined=$7, status=$8, updated_at=now()
-         WHERE id=$9 RETURNING *`,
-        [name, dept || '', designation || '', phone || '', email || '', salary || 0, joined || null, status || 'Active', req.params.id]
-    );
-    if (!rows[0]) return res.status(404).json({ error: 'Employee not found.' });
-    res.json(rows[0]);
+/* PUT /api/employees/:id */
+router.put('/:id', requireHR, async (req, res) => {
+  try {
+    const { name, dept, designation, phone, email, salary, joined, status } = req.body;
+    const [row] = await sql`
+      UPDATE employees SET
+        name        = ${name},
+        dept        = ${dept        || null},
+        designation = ${designation || null},
+        phone       = ${phone       || null},
+        email       = ${email       || null},
+        salary      = ${salary      || 0},
+        joined      = ${joined      || null},
+        status      = ${status      || 'Active'}
+      WHERE id = ${req.params.id}
+      RETURNING *
+    `;
+    if (!row) return res.status(404).json({ error: 'Employee not found' });
+    res.json(row);
+  } catch (err) {
+    console.error('Employee PUT error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
-router.delete('/:id', requireAuth, requireRole('admin', 'manager'), async (req, res) => {
-    await pool.query('DELETE FROM employees WHERE id = $1', [req.params.id]);
+/* DELETE /api/employees/:id */
+router.delete('/:id', requireHR, async (req, res) => {
+  try {
+    await sql`DELETE FROM employees WHERE id = ${req.params.id}`;
     res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 module.exports = router;

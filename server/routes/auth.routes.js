@@ -1,91 +1,73 @@
-// ============================================================================
-// routes/auth.routes.js
-// ============================================================================
+'use strict';
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const rateLimit = require('express-rate-limit');
-const { pool } = require('../db');
-const { signToken, setSessionCookie, clearSessionCookie, requireAuth } = require('../middleware/auth');
+const bcrypt  = require('bcryptjs');
+const jwt     = require('jsonwebtoken');
+const { sql } = require('../db');
+const { requireAuth } = require('../middleware/auth');
+const router  = express.Router();
 
-const router = express.Router();
+function makeToken(user) {
+  return jwt.sign(
+    { id: user.id, name: user.name, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '8h' }
+  );
+}
 
-// Real, server-enforced rate limiting — 10 attempts per 15 minutes per IP.
-// (This is the part that can't be done properly client-side, since a client
-// can always just reload the page or clear storage to reset a client-only
-// counter.)
-const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many login attempts. Please try again in 15 minutes.' }
+/* POST /api/auth/login */
+router.post('/login', async (req, res) => {
+  try {
+    const { id, password } = req.body;
+    if (!id || !password) return res.status(400).json({ error: 'ID and password required' });
+
+    const [user] = await sql`SELECT * FROM users WHERE id = ${id} AND active = TRUE`;
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const token = makeToken(user);
+    res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
-router.post('/login', loginLimiter, async (req, res) => {
-    const { id, password } = req.body || {};
-    if (!id || !password) return res.status(400).json({ error: 'User ID and password are required.' });
-
-    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [String(id).trim()]);
-    const user = rows[0];
-
-    // Deliberately generic error message — do not reveal whether the ID
-    // exists or the password was wrong, and never echo back default
-    // credentials (a real issue that existed in an earlier client-only
-    // version of this app).
-    const genericError = () => res.status(401).json({ error: 'Invalid User ID or Password.' });
-
-    if (!user) return genericError();
-    if (!user.active) return res.status(403).json({ error: 'This account has been disabled. Contact an admin.' });
-
-    if (user.locked_until && new Date(user.locked_until) > new Date()) {
-        return res.status(403).json({ error: 'Account temporarily locked due to repeated failed attempts. Try again later.' });
-    }
-
-    const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) {
-        const attempts = user.failed_attempts + 1;
-        const lockUntil = attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null;
-        await pool.query(
-            'UPDATE users SET failed_attempts = $1, locked_until = $2 WHERE id = $3',
-            [attempts, lockUntil, user.id]
-        );
-        return genericError();
-    }
-
-    await pool.query('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
-
-    const token = signToken(user);
-    setSessionCookie(res, token);
-    res.json({ user: { id: user.id, name: user.name, role: user.role } });
+/* GET /api/auth/me */
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    const [user] = await sql`SELECT id, name, role, active FROM users WHERE id = ${req.user.id}`;
+    if (!user || !user.active) return res.status(401).json({ error: 'User not found or inactive' });
+    res.json({ id: user.id, name: user.name, role: user.role });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
-router.post('/logout', (req, res) => {
-    clearSessionCookie(res);
-    res.json({ ok: true });
-});
+/* POST /api/auth/logout  (client-side token drop; server just acknowledges) */
+router.post('/logout', (req, res) => res.json({ ok: true }));
 
-router.get('/me', requireAuth, (req, res) => {
-    res.json({ user: { id: req.user.id, name: req.user.name, role: req.user.role } });
-});
-
-// Change your own password while logged in (replaces the client-only
-// "forgot password" flow, which couldn't actually verify identity without
-// a backend anyway).
+/* POST /api/auth/change-password */
 router.post('/change-password', requireAuth, async (req, res) => {
-    const { currentPassword, newPassword } = req.body || {};
-    if (!newPassword || newPassword.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters.' });
-    }
-    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
-    const user = rows[0];
-    if (!user) return res.status(404).json({ error: 'User not found.' });
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both passwords required' });
+    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
 
-    const ok = await bcrypt.compare(currentPassword || '', user.password_hash);
-    if (!ok) return res.status(401).json({ error: 'Current password is incorrect.' });
+    const [user] = await sql`SELECT * FROM users WHERE id = ${req.user.id}`;
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const hash = await bcrypt.hash(newPassword, 12);
-    await pool.query('UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2', [hash, user.id]);
+    const ok = await bcrypt.compare(currentPassword, user.password);
+    if (!ok) return res.status(401).json({ error: 'Current password incorrect' });
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await sql`UPDATE users SET password = ${hashed} WHERE id = ${req.user.id}`;
     res.json({ ok: true });
+  } catch (err) {
+    console.error('Change-password error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 module.exports = router;

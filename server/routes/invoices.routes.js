@@ -1,54 +1,86 @@
-// ============================================================================
-// routes/invoices.routes.js
-// ============================================================================
+'use strict';
 const express = require('express');
-const { pool } = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { sql } = require('../db');
+const { requireAuth, requireManager } = require('../middleware/auth');
+const router  = express.Router();
 
-const router = express.Router();
-
-function nextInvoiceId(rows) {
-    const nums = rows.map(r => parseInt(String(r.id).replace(/\D/g, ''), 10)).filter(n => !isNaN(n));
-    const next = (nums.length ? Math.max(...nums) : 1000) + 1;
-    return 'INV' + next;
-}
-
+/* GET /api/invoices */
 router.get('/', requireAuth, async (req, res) => {
-    const { rows } = await pool.query('SELECT * FROM invoices ORDER BY created_at DESC');
+  try {
+    const rows = await sql`SELECT * FROM invoices ORDER BY created_at DESC`;
     res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-router.post('/', requireAuth, requireRole('admin', 'manager'), async (req, res) => {
-    const { client, addr, gstin, date, due, status, terms, items } = req.body || {};
-    if (!client) return res.status(400).json({ error: 'Client name is required.' });
-    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'At least one line item is required.' });
-
-    const { rows: existing } = await pool.query('SELECT id FROM invoices');
-    const id = nextInvoiceId(existing);
-
-    const { rows } = await pool.query(
-        `INSERT INTO invoices (id, client, addr, gstin, date, due, status, terms, items)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-        [id, client, addr || '', gstin || '', date || new Date().toISOString().slice(0,10), due || null,
-         status || 'Pending', terms || 'Net 30 days', JSON.stringify(items)]
-    );
-    res.status(201).json(rows[0]);
+/* GET /api/invoices/:id */
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const [row] = await sql`SELECT * FROM invoices WHERE id = ${req.params.id}`;
+    if (!row) return res.status(404).json({ error: 'Invoice not found' });
+    res.json(row);
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-router.put('/:id', requireAuth, requireRole('admin', 'manager'), async (req, res) => {
-    const { client, addr, gstin, date, due, status, terms, items } = req.body || {};
-    const { rows } = await pool.query(
-        `UPDATE invoices SET client=$1, addr=$2, gstin=$3, date=$4, due=$5, status=$6, terms=$7, items=$8, updated_at=now()
-         WHERE id=$9 RETURNING *`,
-        [client, addr || '', gstin || '', date, due || null, status, terms || 'Net 30 days', JSON.stringify(items || []), req.params.id]
-    );
-    if (!rows[0]) return res.status(404).json({ error: 'Invoice not found.' });
-    res.json(rows[0]);
+/* POST /api/invoices
+   Frontend sends: { client, addr, gstin, date, due, terms, status, items } */
+router.post('/', requireManager, async (req, res) => {
+  try {
+    const { client, addr, gstin, date, due, terms, status, items } = req.body;
+    if (!client) return res.status(400).json({ error: 'client is required' });
+    const [row] = await sql`
+      INSERT INTO invoices (client, addr, gstin, date, due, terms, status, items)
+      VALUES (
+        ${client},
+        ${addr   || null},
+        ${gstin  || null},
+        ${date   || null},
+        ${due    || null},
+        ${terms  || null},
+        ${status || 'Pending'},
+        ${JSON.stringify(items || [])}
+      )
+      RETURNING *
+    `;
+    res.status(201).json(row);
+  } catch (err) {
+    console.error('Invoice POST error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
-router.delete('/:id', requireAuth, requireRole('admin', 'manager'), async (req, res) => {
-    await pool.query('DELETE FROM invoices WHERE id = $1', [req.params.id]);
+/* PUT /api/invoices/:id
+   Frontend uses spread: { ...inv, status: newStatus }
+   so all original fields come through unchanged. */
+router.put('/:id', requireManager, async (req, res) => {
+  try {
+    const { client, addr, gstin, date, due, terms, status, items } = req.body;
+    const [row] = await sql`
+      UPDATE invoices SET
+        client = ${client           || null},
+        addr   = ${addr             || null},
+        gstin  = ${gstin            || null},
+        date   = ${date             || null},
+        due    = ${due              || null},
+        terms  = ${terms            || null},
+        status = ${status           || 'Pending'},
+        items  = ${JSON.stringify(items || [])}
+      WHERE id = ${req.params.id}
+      RETURNING *
+    `;
+    if (!row) return res.status(404).json({ error: 'Invoice not found' });
+    res.json(row);
+  } catch (err) {
+    console.error('Invoice PUT error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/* DELETE /api/invoices/:id */
+router.delete('/:id', requireManager, async (req, res) => {
+  try {
+    await sql`DELETE FROM invoices WHERE id = ${req.params.id}`;
     res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 module.exports = router;
