@@ -26,7 +26,8 @@ function requireRole(...roles) {
 
 const requireAdmin   = requireRole('admin');
 const requireManager = requireRole('admin', 'manager');
-const requireHR      = requireRole('admin', 'manager', 'hr');
+const requireHR      = requireRole('admin', 'manager', 'hr');   // NOTE: admin + manager + hr (any staff role)
+const requireAdminHR = requireRole('admin', 'hr');             // people-ops write access
 const requireAny     = [requireAuth, (req, res, next) => next()];
 
-module.exports = { requireAuth, requireRole, requireAdmin, requireManager, requireHR, requireAny };
+module.exports = { requireAuth, requireRole, requireAdmin, requireManager, requireHR, requireAdminHR, requireAny };
