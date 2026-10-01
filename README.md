@@ -215,3 +215,71 @@ Render Job), then `npm run db:seed` the same way.
 - **Payroll/Leave/Attendance-detail/Dashboard UI:** fully working APIs,
   no screens yet. The current Payroll tab still does its own client-side
   arithmetic from the basic employee list and doesn't call these endpoints.
+
+## Frontend catch-up (this pass)
+
+Your screenshots showed the deployed site still running the original
+8-field Employee form and basic dashboard, even though the database (via
+`migrate.sql`) already had bank details, statutory info, salary
+structures, leave types/balances/requests, and payroll tables sitting
+unused — the backend from the previous pass could read/write all of it,
+but `public/index.html` had no UI for any of it yet. This pass wires the
+frontend up to everything the backend already supports:
+
+- **Employees** — the Add/Edit form now covers the full profile (gender,
+  DOB, blood group, marital status, employment type, work mode, reporting
+  manager, notice period, address, emergency contact, and linking a login
+  user for self-service). Each employee row gets two new action buttons —
+  🏦 **Bank Details** and 🪪 **Statutory (PAN/PF/ESI)** — opening their own
+  small forms that save straight to `employee_bank`/`employee_statutory`.
+- **Attendance** — the status dropdown now offers all 8 states (was 4:
+  Present/Absent/Half Day/Leave; now adds Holiday/Weekly Off/Work From
+  Home/On Duty), there's a "Mark all Present" quick-fill button, and any
+  logged-in user with a linked employee record gets a **Check In / Check
+  Out** card with real timestamps.
+- **Leave** (new tab) — leave balances by type, an Apply for Leave form,
+  a requests list with Cancel, and a two-stage Manager → HR approval queue
+  for staff roles. Approved leave automatically appears as `Leave` (or
+  unpaid LOP) in that employee's attendance, which payroll then picks up.
+- **Payroll** — replaced the old client-side 20%/12% approximation with
+  the real thing: a month/year picker, **Generate Payroll** (admin/HR),
+  **Approve All** and **Lock Month** (admin), a preview table showing real
+  LOP days and net pay per employee, and a proper payslip that pulls bank
+  details, PAN/PF numbers, and leave balance from the database instead of
+  showing "---" placeholders. Employees without payroll access now see a
+  **My Payslips** list of just their own published payslips.
+- **Dashboard** — added upcoming-birthdays and new-joiners widgets (all
+  roles), plus department headcount, today's attendance breakdown, pending
+  leave count, and who's on approved leave today (staff roles).
+- **Notifications** — a 🔔 bell in the header with an unread badge and a
+  dropdown, backed by the `notifications` table.
+- **Audit Log** — a read-only table under Settings, admin only.
+
+### ⚠️ Run the migration before using any of this
+
+`payroll.paid_days`/`lop_days` were defined as `INTEGER` in `migrate.sql`,
+but half-day leave or a half-day absence needs `0.5`. `migrate_v2.sql`
+widens both to `NUMERIC(5,1)` — **without it, generating payroll for a
+month that includes any half-day will fail with a database error.** Since
+your database already has the Phase 1–8 tables from `migrate.sql`, you
+only need to apply the new one:
+```bash
+npm run db:migrate
+```
+This re-runs all three files, but every statement is idempotent, so
+nothing already in place is touched or duplicated — it will just apply the
+handful of new statements in `migrate_v2.sql` (column type changes, a few
+`ON DELETE SET NULL` foreign key fixes, and two unique constraints).
+
+### What's unchanged on purpose
+
+Employee create/edit/delete (and the new Bank/Statutory buttons) are still
+gated to the **admin** role only in the UI, matching the original app's
+`can('users')` check — even though the backend already allows HR too. The
+per-permission catalog visible in your Supabase/Neon screenshot (30+ rows
+like `payroll.approve`, `leave.manage_policy`) isn't surfaced as a granular
+UI yet; role→module access is still the same coarse mapping in
+`HRMS.roles`, just with `leave` and (for admin/HR/employee) `payroll`
+added to it. Building a full per-user permission editor against that
+catalog would be a good next step if you want finer control than the
+current 4 fixed roles.

@@ -4449,17 +4449,24 @@
         // in sync as an optimistic cache: every create/update/delete action
         // calls the API first and only updates this cache (then re-renders)
         // once the server confirms success.
-        const _cache = { employees: [], users: [], invoices: [], siteContent: {}, contactRequests: null };
+        const _cache = {
+            employees: [], users: [], invoices: [], siteContent: {}, contactRequests: null,
+            me: null, notifications: [], leaveTypes: [],
+            // These start `null` and are lazy-loaded the first time their tab
+            // is opened (same pattern as contactRequests above) rather than
+            // fetched on every login, since not every role visits them.
+            leaveBalances: null, leaveRequests: null, payrollPreview: null, myPayslips: null, dashboardExtra: null,
+        };
 
         const HRMS = {
             currentUser: null,
             activeModule: 'dashboard',
 
             roles: {
-                admin:   { label:'Admin',   color:'#e53e3e', permissions:['dashboard','employees','users','attendance','payroll','invoice','requests','website','settings'] },
-                manager: { label:'Manager', color:'#dd6b20', permissions:['dashboard','employees','attendance','invoice','requests'] },
-                hr:      { label:'HR',      color:'#6b46c1', permissions:['dashboard','employees','attendance','requests'] },
-                employee:{ label:'Employee',color:'#2b6cb0', permissions:['dashboard','attendance'] }
+                admin:   { label:'Admin',   color:'#e53e3e', permissions:['dashboard','employees','users','attendance','leave','payroll','invoice','requests','website','settings'] },
+                manager: { label:'Manager', color:'#dd6b20', permissions:['dashboard','employees','attendance','leave','invoice','requests'] },
+                hr:      { label:'HR',      color:'#6b46c1', permissions:['dashboard','employees','attendance','leave','payroll','requests'] },
+                employee:{ label:'Employee',color:'#2b6cb0', permissions:['dashboard','attendance','leave','payroll'] }
             }
         };
         // (Plain data setters — these just update the local cache; the actual
@@ -4469,6 +4476,9 @@
         Object.defineProperty(HRMS, 'employees',  { get: () => _cache.employees,  set: v => { _cache.employees = v; } });
         Object.defineProperty(HRMS, 'invoices',   { get: () => _cache.invoices,   set: v => { _cache.invoices = v; } });
         Object.defineProperty(HRMS, 'siteContent',{ get: () => _cache.siteContent,set: v => { _cache.siteContent = v; } });
+        Object.defineProperty(HRMS, 'me',         { get: () => _cache.me,         set: v => { _cache.me = v; } });
+        Object.defineProperty(HRMS, 'notifications',{ get: () => _cache.notifications, set: v => { _cache.notifications = v; } });
+        Object.defineProperty(HRMS, 'leaveTypes', { get: () => _cache.leaveTypes, set: v => { _cache.leaveTypes = v; } });
 
         // Loads everything the dashboard needs in one round trip, right after login.
         // Postgres NUMERIC columns come back from `pg` as strings (to avoid
@@ -4485,6 +4495,9 @@
             _cache.users = data.users || [];
             _cache.invoices = data.invoices || [];
             _cache.siteContent = data.siteContent || {};
+            _cache.me = data.me ? normalizeEmployee(data.me) : null;
+            _cache.notifications = data.notifications || [];
+            _cache.leaveTypes = data.leaveTypes || [];
         }
 
         // No-op kept only so any leftover saveHRMS() call sites don't throw —
@@ -4646,6 +4659,7 @@
                 { id:'employees',  icon:'👥', label:'Employees'  },
                 { id:'users',      icon:'🔑', label:'Users'      },
                 { id:'attendance', icon:'📅', label:'Attendance' },
+                { id:'leave',      icon:'🌴', label:'Leave'      },
                 { id:'payroll',    icon:'💰', label:'Payroll'    },
                 { id:'invoice',    icon:'🧾', label:'Invoices'   },
                 { id:'requests',   icon:'📨', label:'Requests'   },
@@ -4685,6 +4699,10 @@
                     <div class="hrms-header">
                         <button class="hrms-menu-toggle" onclick="var sb=document.getElementById('hrmsSidebar');var ov=document.getElementById('hrmsSidebarOverlay');sb.classList.toggle('open');ov.style.display=sb.classList.contains('open')?'block':'none';">☰</button>
                         <h2 class="hrms-page-title" id="hrmsPageTitle">${navItems.find(n=>n.id===HRMS.activeModule)?.label||'Dashboard'}</h2>
+                        <div style="position:relative;margin-left:auto;">
+                            <button onclick="toggleNotifDropdown()" style="position:relative;background:none;border:1px solid #e2e8f0;border-radius:9px;width:40px;height:40px;cursor:pointer;font-size:1.15rem;">🔔${(HRMS.notifications||[]).filter(n=>!n.read).length?`<span style="position:absolute;top:-4px;right:-4px;background:#e53e3e;color:#fff;font-size:0.62rem;font-weight:700;border-radius:99px;padding:1px 5px;">${(HRMS.notifications||[]).filter(n=>!n.read).length}</span>`:''}</button>
+                            <div id="notifDropdown" style="display:none;position:absolute;right:0;top:48px;width:320px;max-height:400px;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:500;"></div>
+                        </div>
                         <button class="hrms-logout-btn" onclick="hrmsLogout()">⬅ Logout</button>
                     </div>
                     <div class="hrms-content" id="hrmsContent"></div>
@@ -4707,10 +4725,65 @@
         }
         window.hrmsNav = hrmsNav;
 
+        // ── Notifications ─────────────────────────────────────────────────
+        function notifIcon(type) { return type === 'leave' ? '🌴' : type === 'attendance' ? '📅' : type === 'payroll' ? '💰' : '🔔'; }
+
+        function renderNotifDropdown() {
+            const list = HRMS.notifications || [];
+            if (!list.length) return '<div style="padding:1.25rem;color:#a0aec0;font-size:0.85rem;text-align:center;">No notifications.</div>';
+            const unread = list.filter(n => !n.read).length;
+            return (unread ? `<div style="padding:0.6rem 1rem;border-bottom:1px solid #f0f4f8;text-align:right;"><button class="hrms-btn-sm" onclick="markAllNotifsRead()">Mark all read</button></div>` : '')
+                + list.slice(0, 20).map(n => `
+                <div onclick="markNotifRead(${n.id})" style="padding:0.7rem 1rem;border-bottom:1px solid #f0f4f8;cursor:pointer;display:flex;gap:0.6rem;${n.read?'opacity:0.55;':'background:#f7fffe;'}">
+                    <span style="font-size:1.1rem;">${notifIcon(n.type)}</span>
+                    <div><div style="font-size:0.85rem;font-weight:600;color:#1a202c;">${escapeHTML(n.title)}</div><div style="font-size:0.78rem;color:#718096;">${escapeHTML(n.message)}</div></div>
+                </div>`).join('');
+        }
+
+        function updateNotifBadge() {
+            const btn = document.querySelector('[onclick="toggleNotifDropdown()"]');
+            if (!btn) return;
+            const count = (HRMS.notifications||[]).filter(n=>!n.read).length;
+            let badge = btn.querySelector('span');
+            if (count) {
+                if (!badge) { badge = document.createElement('span'); badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#e53e3e;color:#fff;font-size:0.62rem;font-weight:700;border-radius:99px;padding:1px 5px;'; btn.appendChild(badge); }
+                badge.textContent = count;
+            } else if (badge) { badge.remove(); }
+        }
+
+        function toggleNotifDropdown() {
+            const dd = document.getElementById('notifDropdown');
+            if (!dd) return;
+            const opening = dd.style.display === 'none';
+            if (opening) dd.innerHTML = renderNotifDropdown();
+            dd.style.display = opening ? 'block' : 'none';
+        }
+        window.toggleNotifDropdown = toggleNotifDropdown;
+
+        async function markNotifRead(id) {
+            const n = (HRMS.notifications||[]).find(x => x.id === id);
+            if (n && n.read) return;
+            try { await apiFetch('/notifications/' + id + '/read', { method: 'PUT' }); } catch (e) { return; }
+            if (n) n.read = true;
+            updateNotifBadge();
+            const dd = document.getElementById('notifDropdown');
+            if (dd) dd.innerHTML = renderNotifDropdown();
+        }
+        window.markNotifRead = markNotifRead;
+
+        async function markAllNotifsRead() {
+            try { await apiFetch('/notifications/read-all', { method: 'PUT' }); } catch (e) { return; }
+            (HRMS.notifications||[]).forEach(n => n.read = true);
+            updateNotifBadge();
+            const dd = document.getElementById('notifDropdown');
+            if (dd) dd.innerHTML = renderNotifDropdown();
+        }
+        window.markAllNotifsRead = markAllNotifsRead;
+
         function hrmsRenderModule(mod) {
             const el = document.getElementById('hrmsContent');
             if (!el) return;
-            const renders = { dashboard:renderDashboard, employees:renderEmployees, users:renderUsers, attendance:renderAttendance, payroll:renderPayroll, invoice:renderInvoice, requests:renderRequests, website:renderWebsite, settings:renderSettings };
+            const renders = { dashboard:renderDashboard, employees:renderEmployees, users:renderUsers, attendance:renderAttendance, leave:renderLeave, payroll:renderPayroll, invoice:renderInvoice, requests:renderRequests, website:renderWebsite, settings:renderSettings };
             if (renders[mod]) el.innerHTML = renders[mod]();
             else el.innerHTML = '<p style="color:#bdc3c7;">Module coming soon.</p>';
         }
@@ -4729,6 +4802,9 @@
             const activeEmp = HRMS.employees.filter(e=>e.status==='Active').length;
             const totalInv = HRMS.invoices.reduce((s,i)=>s+invoiceSubtotal(i),0);
             const pendingInv = HRMS.invoices.filter(i=>i.status==='Pending').length;
+            if (_cache.dashboardExtra === null) setTimeout(loadDashboardExtra, 0);
+            const d = _cache.dashboardExtra || {};
+            const staff = can('employees');
             return `
             <div class="hrms-dash-stats">
                 <div class="hds-card"><div class="hds-icon">👥</div><div class="hds-num">${totalEmp}</div><div class="hds-label">Total Employees</div></div>
@@ -4745,10 +4821,52 @@
                     <h4>Recent Invoices</h4>
                     ${HRMS.invoices.slice(0,3).map(i=>`<div class="hrms-list-row"><span style="font-size:1.4rem;">🧾</span><div><b>${escapeHTML(i.id)}</b><br><small>${escapeHTML(i.client)}</small></div><span class="hrms-badge ${i.status==='Paid'?'paid':'pending'}">₹${invoiceSubtotal(i).toLocaleString()}</span></div>`).join('')}
                 </div>
+            </div>
+            ${staff ? `
+            <div class="hrms-dash-stats">
+                <div class="hds-card"><div class="hds-icon">🏢</div><div class="hds-num">${(d.departments||[]).length}</div><div class="hds-label">Departments</div></div>
+                <div class="hds-card"><div class="hds-icon">📅</div><div class="hds-num">${d.attendanceToday?d.attendanceToday.marked:'—'}/${d.attendanceToday?d.attendanceToday.active:'—'}</div><div class="hds-label">Marked Today</div></div>
+                <div class="hds-card"><div class="hds-icon">🌴</div><div class="hds-num">${d.onLeaveToday?d.onLeaveToday.length:0}</div><div class="hds-label">On Leave Today</div></div>
+                <div class="hds-card"><div class="hds-icon">📨</div><div class="hds-num">${d.pendingLeaves!=null?d.pendingLeaves:'—'}</div><div class="hds-label">Pending Leave Requests</div></div>
+            </div>
+            <div class="hrms-dash-grid">
+                <div class="hrms-card">
+                    <h4>Department Breakdown</h4>
+                    ${(d.departments||[]).length?(d.departments||[]).map(x=>`<div class="hrms-list-row"><span style="font-size:1.2rem;">🏢</span><div><b>${escapeHTML(x.name)}</b></div><span class="hrms-badge">${x.count}</span></div>`).join(''):'<p style="color:#a0aec0;font-size:0.85rem;">Loading…</p>'}
+                </div>
+                <div class="hrms-card">
+                    <h4>On Leave Today</h4>
+                    ${(d.onLeaveToday||[]).length?(d.onLeaveToday||[]).map(x=>`<div class="hrms-list-row"><span style="font-size:1.2rem;">🌴</span><div><b>${escapeHTML(x.name)}</b><br><small>${escapeHTML(x.leave_type)}</small></div></div>`).join(''):'<p style="color:#a0aec0;font-size:0.85rem;">No one is on approved leave today.</p>'}
+                </div>
+            </div>` : ''}
+            <div class="hrms-dash-grid">
+                <div class="hrms-card">
+                    <h4>🎂 Upcoming Birthdays</h4>
+                    ${(d.birthdays||[]).length?(d.birthdays||[]).map(b=>`<div class="hrms-list-row"><span style="font-size:1.2rem;">🎂</span><div><b>${escapeHTML(b.name)}</b><br><small>${escapeHTML(b.dept||'')}</small></div><span class="hrms-badge">${b.daysAway===0?'Today!':b.daysAway+'d'}</span></div>`).join(''):'<p style="color:#a0aec0;font-size:0.85rem;">None in the next 30 days.</p>'}
+                </div>
+                <div class="hrms-card">
+                    <h4>🆕 New Joiners (last 30 days)</h4>
+                    ${(d.newJoiners||[]).length?(d.newJoiners||[]).map(j=>`<div class="hrms-list-row"><span style="font-size:1.2rem;">🆕</span><div><b>${escapeHTML(j.name)}</b><br><small>${escapeHTML(j.dept||'')} · joined ${escapeHTML(j.joined)}</small></div></div>`).join(''):'<p style="color:#a0aec0;font-size:0.85rem;">No new joiners recently.</p>'}
+                </div>
             </div>`;
         }
 
+        async function loadDashboardExtra() {
+            try { _cache.dashboardExtra = await apiFetch('/dashboard'); }
+            catch (e) { _cache.dashboardExtra = {}; }
+            if (HRMS.activeModule === 'dashboard') hrmsRenderModule('dashboard');
+        }
+
         // ── EMPLOYEES ─────────────────────────────────────────────────────
+        // Employee ids are numeric (Postgres SERIAL) but arrive here as
+        // strings from onclick="...('${e.id}')" attributes — findEmp() below
+        // compares loosely (==) everywhere instead of (===) so lookups never
+        // silently fail because of that type mismatch.
+        function findEmp(id) { return HRMS.employees.find(x => x.id == id); }
+
+        const EMP_STATUSES = ['Active','Probation','On Notice','On Leave','Inactive','Resigned','Terminated','Relieved'];
+        function empStatusBadgeClass(s) { return s==='Active' ? 'paid' : (['Resigned','Terminated','Relieved','Inactive'].includes(s) ? 'pending' : 'new'); }
+
         function renderEmployees() {
             const isAdmin = can('users');
             return `
@@ -4761,79 +4879,230 @@
                     <thead><tr><th>ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Phone</th><th>Salary</th><th>Status</th>${isAdmin?'<th>Actions</th>':''}</tr></thead>
                     <tbody>${HRMS.employees.map(e=>`
                         <tr>
-                            <td>${escapeHTML(e.id)}</td>
+                            <td>${escapeHTML(e.emp_code||e.id)}</td>
                             <td><span class="hrms-avatar sm">${escapeHTML(e.name.charAt(0))}</span> ${escapeHTML(e.name)}</td>
                             <td>${escapeHTML(e.dept)}</td>
                             <td>${escapeHTML(e.designation)}</td>
                             <td>${escapeHTML(e.phone)}</td>
                             <td>₹${e.salary.toLocaleString()}</td>
-                            <td><span class="hrms-badge ${e.status==='Active'?'paid':'pending'}">${e.status}</span></td>
-                            ${isAdmin?`<td><button class="hrms-btn-sm" onclick="editEmployee('${e.id}')">✏️</button> <button class="hrms-btn-sm danger" onclick="deleteEmployee('${e.id}')">🗑️</button></td>`:''}
+                            <td><span class="hrms-badge ${empStatusBadgeClass(e.status)}">${escapeHTML(e.status)}</span></td>
+                            ${isAdmin?`<td style="white-space:nowrap;">
+                                <button class="hrms-btn-sm" title="Edit profile" onclick="editEmployee('${e.id}')">✏️</button>
+                                <button class="hrms-btn-sm" title="Bank details" onclick="showEmployeeBank('${e.id}')">🏦</button>
+                                <button class="hrms-btn-sm" title="Statutory (PAN/PF/ESI)" onclick="showEmployeeStatutory('${e.id}')">🪪</button>
+                                <button class="hrms-btn-sm danger" title="Delete" onclick="deleteEmployee('${e.id}')">🗑️</button>
+                            </td>`:''}
                         </tr>`).join('')}
                     </tbody>
                 </table>
             </div>`;
         }
 
+        function opts(list, selected) {
+            return list.map(v => `<option value="${escapeHTML(v)}" ${v===selected?'selected':''}>${escapeHTML(v)}</option>`).join('');
+        }
+
         function showAddEmployee(id) {
             const wrap = document.getElementById('empFormWrap');
             if (!wrap) return;
-            const e = id ? HRMS.employees.find(x=>x.id===id) : null;
+            HRMS._editingEmpId = id || null;
+            const e = id ? findEmp(id) : null;
+            const others = HRMS.employees.filter(x => x.id != id); // can't report to yourself
             wrap.style.display = 'block';
             wrap.innerHTML = `
-            <h4>${e?'Edit':'Add'} Employee</h4>
+            <div class="hrms-toolbar" style="margin-bottom:1.25rem;">
+                <h4 style="margin:0;">${e?'Edit':'Add'} Employee</h4>
+                ${e?`<span style="margin-left:auto;display:flex;gap:0.5rem;">
+                        <button class="hrms-btn-sm" onclick="showEmployeeBank('${e.id}')">🏦 Bank Details</button>
+                        <button class="hrms-btn-sm" onclick="showEmployeeStatutory('${e.id}')">🪪 Statutory (PAN/PF/ESI)</button>
+                     </span>`:''}
+            </div>
             <div class="hrms-form-grid">
-                <div class="hrms-form-field"><label>Full Name</label><input id="ef_name" value="${escapeHTML(e?.name||'')}"></div>
+                <div class="hrms-form-field"><label>Full Name *</label><input id="ef_name" value="${escapeHTML(e?.name||'')}"></div>
+                <div class="hrms-form-field"><label>Employee Code</label><input id="ef_code" placeholder="auto-generated if left blank" value="${escapeHTML(e?.emp_code||'')}"></div>
                 <div class="hrms-form-field"><label>Department</label><input id="ef_dept" value="${escapeHTML(e?.dept||'')}"></div>
                 <div class="hrms-form-field"><label>Designation</label><input id="ef_desig" value="${escapeHTML(e?.designation||'')}"></div>
                 <div class="hrms-form-field"><label>Phone</label><input id="ef_phone" value="${escapeHTML(e?.phone||'')}"></div>
-                <div class="hrms-form-field"><label>Email</label><input id="ef_email" value="${escapeHTML(e?.email||'')}"></div>
-                <div class="hrms-form-field"><label>Salary (₹)</label><input id="ef_salary" type="number" value="${escapeHTML(e?.salary||'')}"></div>
-                <div class="hrms-form-field"><label>Joined Date</label><input id="ef_joined" type="date" value="${escapeHTML(e?.joined||'')}"></div>
-                <div class="hrms-form-field"><label>Status</label><select id="ef_status"><option ${e?.status==='Active'?'selected':''}>Active</option><option ${e?.status==='Inactive'?'selected':''}>Inactive</option></select></div>
+                <div class="hrms-form-field"><label>Work Email</label><input id="ef_email" type="email" value="${escapeHTML(e?.email||'')}"></div>
+                <div class="hrms-form-field"><label>Personal Email</label><input id="ef_pemail" type="email" value="${escapeHTML(e?.personal_email||'')}"></div>
+                <div class="hrms-form-field"><label>Salary (₹, monthly basic)</label><input id="ef_salary" type="number" min="0" value="${escapeHTML(e?.salary||'')}"></div>
+                <div class="hrms-form-field"><label>Joined Date</label><input id="ef_joined" type="date" value="${escapeHTML((e?.joined||'').slice(0,10))}"></div>
+                <div class="hrms-form-field"><label>Confirmation Date</label><input id="ef_confirm" type="date" value="${escapeHTML((e?.confirm_date||'').slice(0,10))}"></div>
+                <div class="hrms-form-field"><label>Status</label><select id="ef_status">${opts(EMP_STATUSES, e?.status||'Active')}</select></div>
+                <div class="hrms-form-field"><label>Employment Type</label><select id="ef_emptype">${opts(['Full Time','Part Time','Contract','Intern','Consultant'], e?.emp_type||'Full Time')}</select></div>
+                <div class="hrms-form-field"><label>Work Mode</label><select id="ef_workmode">${opts(['Office','Remote','Hybrid'], e?.work_mode||'Office')}</select></div>
+                <div class="hrms-form-field"><label>Location</label><input id="ef_location" value="${escapeHTML(e?.location||'')}"></div>
+                <div class="hrms-form-field"><label>Reporting Manager</label>
+                    <select id="ef_manager"><option value="">— None —</option>${others.map(o=>`<option value="${o.id}" ${e?.manager_id==o.id?'selected':''}>${escapeHTML(o.name)}</option>`).join('')}</select>
+                </div>
+                <div class="hrms-form-field"><label>Notice Period (days)</label><input id="ef_notice" type="number" min="0" value="${e?.notice_period!=null?e.notice_period:30}"></div>
+                <div class="hrms-form-field"><label>Gender</label><select id="ef_gender"><option value="">— Not set —</option>${opts(['Male','Female','Other'], e?.gender||'')}</select></div>
+                <div class="hrms-form-field"><label>Date of Birth</label><input id="ef_dob" type="date" value="${escapeHTML((e?.dob||'').slice(0,10))}"></div>
+                <div class="hrms-form-field"><label>Blood Group</label><select id="ef_blood"><option value="">— Not set —</option>${opts(['A+','A-','B+','B-','AB+','AB-','O+','O-'], e?.blood_group||'')}</select></div>
+                <div class="hrms-form-field"><label>Marital Status</label><select id="ef_marital"><option value="">— Not set —</option>${opts(['Single','Married','Divorced','Widowed'], e?.marital_status||'')}</select></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Permanent Address</label><input id="ef_paddr" value="${escapeHTML(e?.perm_address||'')}"></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Current Address</label><input id="ef_caddr" value="${escapeHTML(e?.curr_address||'')}"></div>
+                <div class="hrms-form-field"><label>City</label><input id="ef_city" value="${escapeHTML(e?.city||'')}"></div>
+                <div class="hrms-form-field"><label>State</label><input id="ef_state" value="${escapeHTML(e?.state||'')}"></div>
+                <div class="hrms-form-field"><label>Pincode</label><input id="ef_pincode" maxlength="6" value="${escapeHTML(e?.pincode||'')}"></div>
+                <div class="hrms-form-field"><label>Emergency Contact Name</label><input id="ef_ename" value="${escapeHTML(e?.emg_name||'')}"></div>
+                <div class="hrms-form-field"><label>Relation</label><input id="ef_erel" value="${escapeHTML(e?.emg_relation||'')}"></div>
+                <div class="hrms-form-field"><label>Emergency Phone</label><input id="ef_ephone" value="${escapeHTML(e?.emg_phone||'')}"></div>
+                <div class="hrms-form-field"><label>Login User (for self-service)</label><select id="ef_userid"><option value="">— Loading… —</option></select></div>
+                ${['On Notice','Resigned','Terminated','Relieved'].includes(e?.status)?`
+                <div class="hrms-form-field"><label>Leaving Date</label><input id="ef_leftdate" type="date" value="${escapeHTML((e?.date_leaving||'').slice(0,10))}"></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Leaving Reason</label><input id="ef_leftreason" value="${escapeHTML(e?.leave_reason||'')}"></div>`:''}
             </div>
+            <div id="efMsg" style="margin-top:0.5rem;"></div>
             <div style="display:flex;gap:0.75rem;margin-top:1rem;">
                 <button class="hrms-btn-primary" onclick="saveEmployee('${id||''}')">💾 Save</button>
                 <button class="hrms-btn-secondary" onclick="document.getElementById('empFormWrap').style.display='none'">Cancel</button>
             </div>`;
+            populateLoginUserOptions(e?.user_id || '');
+        }
+
+        // The login-user dropdown needs every active user and which employee
+        // (if any) each is already linked to, so an already-linked user can
+        // still be re-selected for *this* record but is flagged for others.
+        async function populateLoginUserOptions(currentUserId) {
+            const sel = document.getElementById('ef_userid');
+            if (!sel) return;
+            try {
+                const list = await apiFetch('/users/options');
+                sel.innerHTML = '<option value="">— None —</option>' + list.map(u => {
+                    const taken = u.employee_id && String(u.employee_id) !== String(HRMS._editingEmpId||'');
+                    return `<option value="${escapeHTML(u.id)}" ${u.id===currentUserId?'selected':''} ${taken?'disabled':''}>${escapeHTML(u.name)} (${escapeHTML(u.id)})${taken?' — already linked':''}</option>`;
+                }).join('');
+            } catch (e) { sel.innerHTML = '<option value="">— Unavailable —</option>'; }
         }
 
         async function saveEmployee(id) {
             const name = document.getElementById('ef_name').value.trim();
             if (!name) { alert('Name is required'); return; }
+            const g = (id) => { const el = document.getElementById(id); return el ? el.value : undefined; };
             const payload = {
-                name,
-                dept: document.getElementById('ef_dept').value,
-                designation: document.getElementById('ef_desig').value,
-                phone: document.getElementById('ef_phone').value,
-                email: document.getElementById('ef_email').value,
-                salary: parseInt(document.getElementById('ef_salary').value) || 0,
-                joined: document.getElementById('ef_joined').value || null,
-                status: document.getElementById('ef_status').value || 'Active'
+                name, emp_code: g('ef_code') || null,
+                dept: g('ef_dept'), designation: g('ef_desig'), phone: g('ef_phone'),
+                email: g('ef_email'), personal_email: g('ef_pemail'),
+                salary: parseFloat(document.getElementById('ef_salary').value) || 0,
+                joined: g('ef_joined') || null, confirm_date: g('ef_confirm') || null,
+                status: g('ef_status') || 'Active', emp_type: g('ef_emptype'), work_mode: g('ef_workmode'),
+                location: g('ef_location'), manager_id: g('ef_manager') || null,
+                notice_period: parseInt(document.getElementById('ef_notice').value, 10) || 0,
+                gender: g('ef_gender') || null, dob: g('ef_dob') || null, blood_group: g('ef_blood') || null,
+                marital_status: g('ef_marital') || null,
+                perm_address: g('ef_paddr'), curr_address: g('ef_caddr'),
+                city: g('ef_city'), state: g('ef_state'), pincode: g('ef_pincode'),
+                emg_name: g('ef_ename'), emg_relation: g('ef_erel'), emg_phone: g('ef_ephone'),
+                user_id: g('ef_userid') || null,
             };
+            const leftDate = g('ef_leftdate'); if (leftDate !== undefined) payload.date_leaving = leftDate || null;
+            const leftReason = g('ef_leftreason'); if (leftReason !== undefined) payload.leave_reason = leftReason;
+            const msg = document.getElementById('efMsg');
             try {
                 if (id) {
                     const updated = normalizeEmployee(await apiFetch('/employees/' + encodeURIComponent(id), { method: 'PUT', body: payload }));
                     const arr = HRMS.employees;
-                    const idx = arr.findIndex(x => x.id === id);
+                    const idx = arr.findIndex(x => x.id == id);
                     if (idx > -1) arr[idx] = updated;
                     HRMS.employees = arr;
                 } else {
                     const created = normalizeEmployee(await apiFetch('/employees', { method: 'POST', body: payload }));
                     HRMS.employees = [...HRMS.employees, created];
                 }
-            } catch (e) { alert(e.message); return; }
+            } catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; else alert(e.message); return; }
             hrmsRenderModule('employees');
         }
 
         function editEmployee(id) { showAddEmployee(id); }
         async function deleteEmployee(id) {
-            if (!confirm('Delete this employee?')) return;
+            if (!confirm('Delete this employee? This is blocked if they already have payroll/leave history — set their status to Relieved instead in that case.')) return;
             try { await apiFetch('/employees/' + encodeURIComponent(id), { method: 'DELETE' }); }
             catch (e) { alert(e.message); return; }
-            HRMS.employees = HRMS.employees.filter(e=>e.id!==id);
+            HRMS.employees = HRMS.employees.filter(e => e.id != id);
             hrmsRenderModule('employees');
         }
+
+        // ── Employee Bank Details ────────────────────────────────────────
+        async function showEmployeeBank(id) {
+            const wrap = document.getElementById('empFormWrap');
+            if (!wrap) return;
+            const e = findEmp(id);
+            wrap.style.display = 'block';
+            wrap.innerHTML = '<h4>Bank Details — '+escapeHTML(e?.name||'')+'</h4><p style="color:#718096;">Loading…</p>';
+            let bank = null;
+            try { bank = (await apiFetch('/employees/' + encodeURIComponent(id))).bank; }
+            catch (err) { wrap.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(err.message)+'</div>'; return; }
+            const b = bank || {};
+            wrap.innerHTML = `
+            <h4>🏦 Bank Details — ${escapeHTML(e?.name||'')}</h4>
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>Account Holder Name</label><input id="bf_holder" value="${escapeHTML(b.holder_name||'')}"></div>
+                <div class="hrms-form-field"><label>Bank Name</label><input id="bf_bank" value="${escapeHTML(b.bank_name||'')}"></div>
+                <div class="hrms-form-field"><label>Branch</label><input id="bf_branch" value="${escapeHTML(b.branch||'')}"></div>
+                <div class="hrms-form-field"><label>Account Number</label><input id="bf_acct" value="${escapeHTML(b.account_no||'')}"></div>
+                <div class="hrms-form-field"><label>IFSC Code</label><input id="bf_ifsc" style="text-transform:uppercase;" value="${escapeHTML(b.ifsc||'')}"></div>
+                <div class="hrms-form-field"><label>Account Type</label><select id="bf_type"><option value="">— Not set —</option>${opts(['Savings','Current','Salary'], b.account_type||'')}</select></div>
+                <div class="hrms-form-field"><label>Pay Mode</label><select id="bf_mode">${opts(['Bank Transfer','Cheque','Cash','UPI'], b.pay_mode||'Bank Transfer')}</select></div>
+            </div>
+            <div id="bfMsg" style="margin-top:0.5rem;"></div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+                <button class="hrms-btn-primary" onclick="saveEmployeeBank('${id}')">💾 Save Bank Details</button>
+                <button class="hrms-btn-secondary" onclick="showAddEmployee('${id}')">← Back to Profile</button>
+            </div>`;
+        }
+
+        async function saveEmployeeBank(id) {
+            const g = (i) => document.getElementById(i).value;
+            const payload = { holder_name: g('bf_holder'), bank_name: g('bf_bank'), branch: g('bf_branch'), account_no: g('bf_acct'), ifsc: g('bf_ifsc'), account_type: g('bf_type') || null, pay_mode: g('bf_mode') };
+            const msg = document.getElementById('bfMsg');
+            try { await apiFetch('/employees/' + encodeURIComponent(id) + '/bank', { method: 'PUT', body: payload }); }
+            catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; return; }
+            if (msg) msg.innerHTML = '<div style="color:#48bb78;font-size:0.88rem;">✅ Bank details saved.</div>';
+        }
+
+        // ── Employee Statutory Details ───────────────────────────────────
+        async function showEmployeeStatutory(id) {
+            const wrap = document.getElementById('empFormWrap');
+            if (!wrap) return;
+            const e = findEmp(id);
+            wrap.style.display = 'block';
+            wrap.innerHTML = '<h4>Statutory Details — '+escapeHTML(e?.name||'')+'</h4><p style="color:#718096;">Loading…</p>';
+            let stat = null;
+            try { stat = (await apiFetch('/employees/' + encodeURIComponent(id))).statutory; }
+            catch (err) { wrap.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(err.message)+'</div>'; return; }
+            const s = stat || {};
+            wrap.innerHTML = `
+            <h4>🪪 Statutory Details — ${escapeHTML(e?.name||'')}</h4>
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>PAN</label><input id="sf_pan" style="text-transform:uppercase;" maxlength="10" value="${escapeHTML(s.pan||'')}"></div>
+                <div class="hrms-form-field"><label>Aadhaar (last 4 digits only)</label><input id="sf_aadhaar" maxlength="4" value="${escapeHTML(s.aadhaar_ref||'')}"></div>
+                <div class="hrms-form-field"><label>UAN</label><input id="sf_uan" maxlength="12" value="${escapeHTML(s.uan||'')}"></div>
+                <div class="hrms-form-field"><label>PF Number</label><input id="sf_pf" value="${escapeHTML(s.pf_number||'')}"></div>
+                <div class="hrms-form-field"><label>ESIC Number</label><input id="sf_esic" value="${escapeHTML(s.esic_number||'')}"></div>
+                <div class="hrms-form-field"><label>Tax Regime</label><select id="sf_regime">${opts(['New','Old'], s.tax_regime||'New')}</select></div>
+                <div class="hrms-form-field"><label><input type="checkbox" id="sf_pt" ${s.pt_applicable?'checked':''}> Professional Tax Applicable</label></div>
+                <div class="hrms-form-field"><label><input type="checkbox" id="sf_lwf" ${s.lwf_applicable?'checked':''}> Labour Welfare Fund Applicable</label></div>
+                <div class="hrms-form-field"><label><input type="checkbox" id="sf_tds" ${s.tds_applicable?'checked':''}> TDS Applicable</label></div>
+            </div>
+            <div id="sfMsg" style="margin-top:0.5rem;"></div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+                <button class="hrms-btn-primary" onclick="saveEmployeeStatutory('${id}')">💾 Save Statutory Details</button>
+                <button class="hrms-btn-secondary" onclick="showAddEmployee('${id}')">← Back to Profile</button>
+            </div>`;
+        }
+
+        async function saveEmployeeStatutory(id) {
+            const g = (i) => document.getElementById(i).value;
+            const c = (i) => document.getElementById(i).checked;
+            const payload = { pan: g('sf_pan'), aadhaar_ref: g('sf_aadhaar'), uan: g('sf_uan'), pf_number: g('sf_pf'), esic_number: g('sf_esic'), tax_regime: g('sf_regime'), pt_applicable: c('sf_pt'), lwf_applicable: c('sf_lwf'), tds_applicable: c('sf_tds') };
+            const msg = document.getElementById('sfMsg');
+            try { await apiFetch('/employees/' + encodeURIComponent(id) + '/statutory', { method: 'PUT', body: payload }); }
+            catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; return; }
+            if (msg) msg.innerHTML = '<div style="color:#48bb78;font-size:0.88rem;">✅ Statutory details saved.</div>';
+        }
+        window.showEmployeeBank = showEmployeeBank; window.saveEmployeeBank = saveEmployeeBank;
+        window.showEmployeeStatutory = showEmployeeStatutory; window.saveEmployeeStatutory = saveEmployeeStatutory;
         window.showAddEmployee=showAddEmployee; window.saveEmployee=saveEmployee; window.editEmployee=editEmployee; window.deleteEmployee=deleteEmployee;
 
         // ── USERS ─────────────────────────────────────────────────────────
@@ -4945,74 +5214,361 @@
         window.showAddUser=showAddUser; window.saveUser=saveUser; window.toggleUser=toggleUser; window.editUser=editUser; window.deleteUser=deleteUser;
 
         // ── ATTENDANCE ────────────────────────────────────────────────────
+        const ATT_STATUSES = ['Present','Absent','Half Day','Leave','Holiday','Weekly Off','Work From Home','On Duty'];
+
         function renderAttendance() {
             const today = new Date().toISOString().split('T')[0];
-            return `
-            <div class="hrms-card">
-                <h4>Mark Attendance — ${new Date().toDateString()}</h4>
-                <div class="hrms-table-wrap">
-                    <table class="hrms-table">
-                        <thead><tr><th>Employee</th><th>Department</th><th>Status</th></tr></thead>
-                        <tbody>${HRMS.employees.filter(e=>e.status==='Active').map(e=>`
-                        <tr>
-                            <td>${escapeHTML(e.name)}</td>
-                            <td>${escapeHTML(e.dept)}</td>
-                            <td>
-                                <select class="hrms-select-inline" data-emp-id="${escapeHTML(e.id)}" id="att_${escapeHTML(e.id)}">
-                                    <option>Present</option>
-                                    <option>Absent</option>
-                                    <option>Half Day</option>
-                                    <option>Leave</option>
-                                </select>
-                            </td>
-                        </tr>`).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                <div id="attMsg" style="margin-top:0.75rem;"></div>
-                <button class="hrms-btn-primary" style="margin-top:0.5rem;" onclick="saveAttendance('${today}')">💾 Save Attendance</button>
-            </div>`;
+            const canMark = can('employees'); // admin/manager/hr — matches the backend's requireHR gate on /attendance/mark
+            let html = '';
+            if (HRMS.me) html += '<div id="selfAttCard"><p style="color:#718096;">Loading your attendance…</p></div>';
+            if (canMark) {
+                html += `
+                <div class="hrms-card">
+                    <div class="hrms-toolbar" style="margin-bottom:0.75rem;">
+                        <h4 style="margin:0;">Mark Attendance — ${new Date().toDateString()}</h4>
+                        <button class="hrms-btn-sm" style="margin-left:auto;" onclick="quickFillAttendance('Present')">✅ Mark all Present</button>
+                        <button class="hrms-btn-sm" onclick="quickFillAttendance('Weekly Off')">🗓️ Mark all Weekly Off</button>
+                    </div>
+                    <div class="hrms-table-wrap">
+                        <table class="hrms-table">
+                            <thead><tr><th>Employee</th><th>Department</th><th>Status</th></tr></thead>
+                            <tbody>${HRMS.employees.filter(e=>e.status==='Active'||e.status==='Probation'||e.status==='On Notice').map(e=>`
+                            <tr>
+                                <td>${escapeHTML(e.name)}</td>
+                                <td>${escapeHTML(e.dept)}</td>
+                                <td>
+                                    <select class="hrms-select-inline" data-emp-id="${escapeHTML(e.id)}" id="att_${escapeHTML(e.id)}">
+                                        ${ATT_STATUSES.map(s=>`<option>${s}</option>`).join('')}
+                                    </select>
+                                </td>
+                            </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="attMsg" style="margin-top:0.75rem;"></div>
+                    <button class="hrms-btn-primary" style="margin-top:0.5rem;" onclick="saveAttendance('${today}')">💾 Save Attendance</button>
+                </div>`;
+            }
+            if (!canMark && !HRMS.me) html = '<p style="color:#718096;">No employee record is linked to your login yet — ask HR to link it so you can check in.</p>';
+            setTimeout(loadSelfAttendanceCard, 0);
+            return html;
         }
+
+        function quickFillAttendance(status) {
+            HRMS.employees.filter(e=>e.status==='Active'||e.status==='Probation'||e.status==='On Notice').forEach(e => {
+                const sel = document.getElementById('att_' + e.id);
+                if (sel) sel.value = status;
+            });
+        }
+        window.quickFillAttendance = quickFillAttendance;
 
         async function saveAttendance(date) {
             const msg = document.getElementById('attMsg');
-            const active = HRMS.employees.filter(e => e.status === 'Active');
+            const active = HRMS.employees.filter(e=>e.status==='Active'||e.status==='Probation'||e.status==='On Notice');
             try {
-                await Promise.all(active.map(e => {
-                    const sel = document.getElementById('att_' + e.id);
-                    const status = sel ? sel.value : 'Present';
-                    return apiFetch('/attendance/mark', { method: 'POST', body: { employeeId: e.id, date, status } });
-                }));
-                if (msg) msg.innerHTML = '<div style="color:#48bb78;font-size:0.88rem;">✅ Attendance saved for ' + date + '.</div>';
+                const entries = active.map(e => ({ employeeId: e.id, status: (document.getElementById('att_' + e.id)||{}).value || 'Present' }));
+                const result = await apiFetch('/attendance/bulk', { method: 'POST', body: { date, entries } });
+                const note = result.skipped && result.skipped.length ? ` (${result.skipped.length} skipped — payroll already locked for some)` : '';
+                if (msg) msg.innerHTML = '<div style="color:#48bb78;font-size:0.88rem;">✅ Attendance saved for ' + date + ' — ' + result.saved + ' record(s)' + note + '.</div>';
             } catch (e) {
                 if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">' + escapeHTML(e.message) + '</div>';
             }
         }
         window.saveAttendance = saveAttendance;
 
+        // Self-service check-in/out card, shown above the marking grid (or
+        // alone, for a plain 'employee' role) whenever the logged-in user has
+        // a linked employee record.
+        async function loadSelfAttendanceCard() {
+            const el = document.getElementById('selfAttCard');
+            if (!el) return;
+            let data;
+            try { data = await apiFetch('/attendance/me/today'); }
+            catch (e) { el.innerHTML = '<div class="cp-error" style="display:block;">' + escapeHTML(e.message) + '</div>'; return; }
+            if (!data.employee) { el.innerHTML = ''; return; }
+            const r = data.record;
+            const inTime = r && r.check_in ? String(r.check_in).slice(0,5) : null;
+            const outTime = r && r.check_out ? String(r.check_out).slice(0,5) : null;
+            el.innerHTML = `
+            <div class="hrms-card">
+                <h4>My Attendance — ${new Date().toDateString()}</h4>
+                <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+                    <div><small style="color:#718096;">Status</small><br><span class="hrms-badge ${r&&r.status==='Present'?'paid':'new'}">${r?escapeHTML(r.status):'Not marked yet'}</span></div>
+                    <div><small style="color:#718096;">Check-in</small><br><b>${inTime||'—'}</b></div>
+                    <div><small style="color:#718096;">Check-out</small><br><b>${outTime||'—'}</b></div>
+                    <div style="margin-left:auto;display:flex;gap:0.5rem;">
+                        <button class="hrms-btn-primary" id="selfCheckInBtn" ${inTime?'disabled':''} onclick="selfCheckIn()">🟢 Check In</button>
+                        <button class="hrms-btn-secondary" id="selfCheckOutBtn" ${(!inTime||outTime)?'disabled':''} onclick="selfCheckOut()">🔴 Check Out</button>
+                    </div>
+                </div>
+                <div id="selfAttMsg" style="margin-top:0.5rem;"></div>
+            </div>`;
+        }
+        async function selfCheckIn() {
+            const msg = document.getElementById('selfAttMsg');
+            try { await apiFetch('/attendance/check-in', { method: 'POST' }); await loadSelfAttendanceCard(); }
+            catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; }
+        }
+        async function selfCheckOut() {
+            const msg = document.getElementById('selfAttMsg');
+            try { await apiFetch('/attendance/check-out', { method: 'POST' }); await loadSelfAttendanceCard(); }
+            catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; }
+        }
+        window.selfCheckIn = selfCheckIn; window.selfCheckOut = selfCheckOut;
+
+        // ── LEAVE ─────────────────────────────────────────────────────────
+        const LEAVE_BADGE = { Submitted:'new', 'Manager Approved':'new', 'HR Approved':'paid', Rejected:'pending', Cancelled:'pending' };
+
+        async function loadLeaveData() {
+            try {
+                const [balances, requests] = await Promise.all([
+                    HRMS.me ? apiFetch('/leave/balances') : Promise.resolve([]),
+                    apiFetch('/leave/requests'),
+                ]);
+                _cache.leaveBalances = balances;
+                _cache.leaveRequests = requests;
+            } catch (e) {
+                _cache.leaveBalances = [];
+                _cache.leaveRequests = [];
+            }
+            if (HRMS.activeModule === 'leave') hrmsRenderModule('leave');
+        }
+
+        function renderLeave() {
+            if (_cache.leaveRequests === null) {
+                setTimeout(loadLeaveData, 0);
+                return '<p style="color:#718096;">Loading leave data…</p>';
+            }
+            const staff = can('employees'); // admin/manager/hr — same set the backend treats as "staff" for leave
+            const requests = _cache.leaveRequests || [];
+            const myRequests = HRMS.me ? requests.filter(r => r.employee_id == HRMS.me.id) : requests;
+            const pendingManager = staff ? requests.filter(r => r.status === 'Submitted') : [];
+            const pendingHR = (staff && (HRMS.currentUser.role === 'admin' || HRMS.currentUser.role === 'hr')) ? requests.filter(r => r.status === 'Manager Approved') : [];
+
+            let html = '<div id="leaveFormWrap" style="display:none;" class="hrms-card"></div>';
+
+            if (HRMS.me) {
+                html += '<div class="hrms-toolbar"><button class="hrms-btn-primary" onclick="showApplyLeave()">+ Apply for Leave</button></div>';
+                html += '<div class="hrms-card"><h4>My Leave Balance ('+new Date().getFullYear()+')</h4><div class="hrms-dash-stats">'
+                    + (_cache.leaveBalances||[]).map(b => {
+                        const avail = (parseFloat(b.closing)||0) - (parseFloat(b.pending)||0);
+                        return `<div class="hds-card"><div class="hds-icon">🌴</div><div class="hds-num">${b.paid?avail:'—'}</div><div class="hds-label">${escapeHTML(b.leave_type_name)}${b.paid?' available':' (unpaid)'}</div></div>`;
+                    }).join('') + '</div></div>';
+            }
+
+            html += '<div class="hrms-card"><h4>'+(HRMS.me?'My ':'')+'Requests</h4><div class="hrms-table-wrap"><table class="hrms-table">'
+                + '<thead><tr>'+(staff&&!HRMS.me?'<th>Employee</th>':'')+'<th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Reason</th><th>Actions</th></tr></thead><tbody>'
+                + myRequests.map(r => `<tr>
+                    ${staff&&!HRMS.me?`<td>${escapeHTML(r.employee_name)}</td>`:''}
+                    <td>${escapeHTML(r.leave_type_name)}${r.half_day?' (half-day)':''}</td>
+                    <td>${escapeHTML(String(r.from_date).slice(0,10))}</td>
+                    <td>${escapeHTML(String(r.to_date).slice(0,10))}</td>
+                    <td>${parseFloat(r.days)}</td>
+                    <td><span class="hrms-badge ${LEAVE_BADGE[r.status]||'new'}">${escapeHTML(r.status)}</span></td>
+                    <td>${escapeHTML(r.reason||'')}</td>
+                    <td>${['Submitted','Manager Approved'].includes(r.status)?`<button class="hrms-btn-sm danger" onclick="cancelLeaveRequest(${r.id})">Cancel</button>`:'—'}</td>
+                </tr>`).join('') + '</tbody></table></div></div>';
+
+            if (staff && pendingManager.length) {
+                html += '<div class="hrms-card"><h4>Pending Manager Approval</h4><div class="hrms-table-wrap"><table class="hrms-table">'
+                    + '<thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Actions</th></tr></thead><tbody>'
+                    + pendingManager.map(r => `<tr>
+                        <td>${escapeHTML(r.employee_name)}</td><td>${escapeHTML(r.leave_type_name)}</td>
+                        <td>${escapeHTML(String(r.from_date).slice(0,10))}</td><td>${escapeHTML(String(r.to_date).slice(0,10))}</td>
+                        <td>${parseFloat(r.days)}</td><td>${escapeHTML(r.reason||'')}</td>
+                        <td><button class="hrms-btn-sm" onclick="actOnLeave(${r.id},'manager','Approved')">✅ Approve</button> <button class="hrms-btn-sm danger" onclick="actOnLeave(${r.id},'manager','Rejected')">✖ Reject</button></td>
+                    </tr>`).join('') + '</tbody></table></div></div>';
+            }
+            if (pendingHR.length) {
+                html += '<div class="hrms-card"><h4>Pending HR Approval</h4><div class="hrms-table-wrap"><table class="hrms-table">'
+                    + '<thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Actions</th></tr></thead><tbody>'
+                    + pendingHR.map(r => `<tr>
+                        <td>${escapeHTML(r.employee_name)}</td><td>${escapeHTML(r.leave_type_name)}</td>
+                        <td>${escapeHTML(String(r.from_date).slice(0,10))}</td><td>${escapeHTML(String(r.to_date).slice(0,10))}</td>
+                        <td>${parseFloat(r.days)}</td><td>${escapeHTML(r.reason||'')}</td>
+                        <td><button class="hrms-btn-sm" onclick="actOnLeave(${r.id},'hr','Approved')">✅ Approve</button> <button class="hrms-btn-sm danger" onclick="actOnLeave(${r.id},'hr','Rejected')">✖ Reject</button></td>
+                    </tr>`).join('') + '</tbody></table></div></div>';
+            }
+            if (!HRMS.me && !staff) html = '<p style="color:#718096;">No employee record is linked to your login yet — ask HR to link it.</p>';
+            return html;
+        }
+
+        function showApplyLeave() {
+            const wrap = document.getElementById('leaveFormWrap');
+            if (!wrap) return;
+            wrap.style.display = 'block';
+            const types = (HRMS.leaveTypes||[]);
+            wrap.innerHTML = `
+            <h4>Apply for Leave</h4>
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>Leave Type</label><select id="lf_type">${types.map(t=>`<option value="${t.id}">${escapeHTML(t.name)}${t.paid?'':' (unpaid)'}</option>`).join('')}</select></div>
+                <div class="hrms-form-field"><label><input type="checkbox" id="lf_half"> Half day (single day only)</label></div>
+                <div class="hrms-form-field"><label>From Date</label><input id="lf_from" type="date"></div>
+                <div class="hrms-form-field"><label>To Date</label><input id="lf_to" type="date"></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Reason</label><input id="lf_reason" placeholder="Brief reason for the leave"></div>
+            </div>
+            <div id="lfMsg" style="margin-top:0.5rem;"></div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+                <button class="hrms-btn-primary" onclick="submitLeaveApply()">💾 Submit Request</button>
+                <button class="hrms-btn-secondary" onclick="document.getElementById('leaveFormWrap').style.display='none'">Cancel</button>
+            </div>`;
+        }
+        window.showApplyLeave = showApplyLeave;
+
+        async function submitLeaveApply() {
+            const msg = document.getElementById('lfMsg');
+            const payload = {
+                leaveTypeId: parseInt(document.getElementById('lf_type').value, 10),
+                fromDate: document.getElementById('lf_from').value,
+                toDate: document.getElementById('lf_to').value,
+                halfDay: document.getElementById('lf_half').checked,
+                reason: document.getElementById('lf_reason').value,
+            };
+            if (payload.halfDay) payload.toDate = payload.fromDate;
+            if (!payload.fromDate || !payload.toDate) { if(msg) msg.innerHTML = '<div class="cp-error" style="display:block;">Please choose from/to dates.</div>'; return; }
+            try {
+                await apiFetch('/leave/requests', { method: 'POST', body: payload });
+            } catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; return; }
+            document.getElementById('leaveFormWrap').style.display = 'none';
+            _cache.leaveRequests = null; _cache.leaveBalances = null; // force refresh
+            hrmsRenderModule('leave');
+        }
+        window.submitLeaveApply = submitLeaveApply;
+
+        async function actOnLeave(id, stage, action) {
+            const remark = action === 'Rejected' ? prompt('Reason for rejecting this request:') : null;
+            if (action === 'Rejected' && (!remark || remark.trim().length < 3)) { alert('Please give a reason (at least 3 characters) for rejecting.'); return; }
+            try {
+                await apiFetch('/leave/requests/' + id + '/' + stage + '-action', { method: 'PUT', body: { action, remark: remark || undefined } });
+            } catch (e) { alert(e.message); return; }
+            _cache.leaveRequests = null;
+            hrmsRenderModule('leave');
+        }
+        window.actOnLeave = actOnLeave;
+
+        async function cancelLeaveRequest(id) {
+            if (!confirm('Cancel this leave request?')) return;
+            try { await apiFetch('/leave/requests/' + id + '/cancel', { method: 'PUT' }); }
+            catch (e) { alert(e.message); return; }
+            _cache.leaveRequests = null; _cache.leaveBalances = null;
+            hrmsRenderModule('leave');
+        }
+        window.cancelLeaveRequest = cancelLeaveRequest;
+
         // ── PAYROLL ───────────────────────────────────────────────────────
+        // Payroll is now computed server-side from real attendance (LOP),
+        // each employee's salary structure/statutory record, and join/leave
+        // dates — see routes/payroll.routes.js. This replaces the earlier
+        // purely client-side 20%/12% approximation.
+        const PAYROLL_BADGE = { 'Not Generated':'pending', Draft:'new', Generated:'new', Approved:'paid', Locked:'paid' };
+        const MONTH_NAMES = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+
+        function initPayrollPeriod() {
+            const now = new Date();
+            if (!HRMS._payMonth) HRMS._payMonth = now.getMonth() + 1;
+            if (!HRMS._payYear) HRMS._payYear = now.getFullYear();
+        }
+
+        async function loadPayrollPreview() {
+            initPayrollPeriod();
+            try { _cache.payrollPreview = await apiFetch('/payroll/preview?month=' + HRMS._payMonth + '&year=' + HRMS._payYear); }
+            catch (e) { _cache.payrollPreview = { entries: [], totals: {}, error: e.message }; }
+            if (HRMS.activeModule === 'payroll') hrmsRenderModule('payroll');
+        }
+        async function loadMyPayslips() {
+            try { _cache.myPayslips = await apiFetch('/payroll/my'); }
+            catch (e) { _cache.myPayslips = []; }
+            if (HRMS.activeModule === 'payroll') hrmsRenderModule('payroll');
+        }
+
         function renderPayroll() {
+            const isPayrollAdmin = can('users');        // admin only — approve/lock
+            const isPayrollGen = can('payroll') && HRMS.currentUser.role !== 'employee'; // admin/hr — generate + preview
+            initPayrollPeriod();
+
+            if (!isPayrollGen) {
+                // Employee (and anyone else without payroll-staff access): just their own published payslips.
+                if (_cache.myPayslips === null) { setTimeout(loadMyPayslips, 0); return '<p style="color:#718096;">Loading your payslips…</p>'; }
+                const rows = _cache.myPayslips || [];
+                return '<div class="hrms-card"><h4>My Payslips</h4>' + (rows.length ? '<div class="hrms-table-wrap"><table class="hrms-table">'
+                    + '<thead><tr><th>Period</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th></th></tr></thead><tbody>'
+                    + rows.map(r => `<tr>
+                        <td>${MONTH_NAMES[r.month]} ${r.year}</td><td>₹${Number(r.gross).toLocaleString()}</td>
+                        <td>₹${Number(r.total_ded).toLocaleString()}</td><td><b>₹${Number(r.net_pay).toLocaleString()}</b></td>
+                        <td><span class="hrms-badge ${PAYROLL_BADGE[r.status]}">${r.status}</span></td>
+                        <td><button class="hrms-btn-sm" onclick="genPayslip(${r.month},${r.year})">🧾 View</button></td>
+                    </tr>`).join('') + '</tbody></table></div>' : '<p style="color:#718096;">No published payslips yet.</p>') + '</div>';
+            }
+
+            if (_cache.payrollPreview === null) { setTimeout(loadPayrollPreview, 0); return '<p style="color:#718096;">Loading payroll…</p>'; }
+            const pv = _cache.payrollPreview || {};
+            const entries = pv.entries || [];
+            const t = pv.totals || {};
+            const allDraft = entries.length && entries.every(e => e.status === 'Draft' || e.status === 'Generated');
+            const allApproved = entries.length && entries.every(e => e.status === 'Approved' || e.status === 'Locked');
+
             return `
+            <div class="hrms-toolbar" style="flex-wrap:wrap;">
+                <select class="hrms-select-inline" id="payMonthSel" onchange="HRMS._payMonth=parseInt(this.value,10);_cache.payrollPreview=null;hrmsRenderModule('payroll');">
+                    ${MONTH_NAMES.slice(1).map((m,i)=>`<option value="${i+1}" ${i+1===HRMS._payMonth?'selected':''}>${m}</option>`).join('')}
+                </select>
+                <select class="hrms-select-inline" id="payYearSel" onchange="HRMS._payYear=parseInt(this.value,10);_cache.payrollPreview=null;hrmsRenderModule('payroll');">
+                    ${[HRMS._payYear-1,HRMS._payYear,HRMS._payYear+1].map(y=>`<option value="${y}" ${y===HRMS._payYear?'selected':''}>${y}</option>`).join('')}
+                </select>
+                <button class="hrms-btn-primary" onclick="runPayrollGenerate()">⚙️ Generate Payroll</button>
+                ${isPayrollAdmin?`<button class="hrms-btn-secondary" ${!allDraft?'disabled':''} onclick="runPayrollApproveAll()">✅ Approve All (publish payslips)</button>
+                <button class="hrms-btn-secondary" ${!allApproved?'disabled':''} onclick="runPayrollLock()">🔒 Lock Month</button>`:''}
+            </div>
+            <div id="payMsg" style="margin-bottom:0.75rem;"></div>
+            <div class="hrms-dash-stats">
+                <div class="hds-card"><div class="hds-icon">👥</div><div class="hds-num">${t.count||0}</div><div class="hds-label">Employees</div></div>
+                <div class="hds-card"><div class="hds-icon">🧾</div><div class="hds-num">₹${((t.gross||0)/1000).toFixed(0)}K</div><div class="hds-label">Gross</div></div>
+                <div class="hds-card"><div class="hds-icon">➖</div><div class="hds-num">₹${((t.deductions||0)/1000).toFixed(0)}K</div><div class="hds-label">Deductions</div></div>
+                <div class="hds-card"><div class="hds-icon">💵</div><div class="hds-num">₹${((t.net||0)/1000).toFixed(0)}K</div><div class="hds-label">Net Payable</div></div>
+            </div>
             <div class="hrms-table-wrap">
                 <table class="hrms-table">
-                    <thead><tr><th>Employee</th><th>Designation</th><th>Basic</th><th>Allowances</th><th>Deductions</th><th>Net Pay</th><th>Action</th></tr></thead>
-                    <tbody>${HRMS.employees.map(e=>{
-                        const allowance = Math.round(e.salary * 0.20);
-                        const deduction = Math.round(e.salary * 0.12);
-                        const net = e.salary + allowance - deduction;
-                        return `<tr>
-                            <td><span class="hrms-avatar sm">${escapeHTML(e.name.charAt(0))}</span> ${escapeHTML(e.name)}</td>
-                            <td>${escapeHTML(e.designation)}</td>
-                            <td>₹${e.salary.toLocaleString()}</td>
-                            <td style="color:#48bb78;">+₹${allowance.toLocaleString()}</td>
-                            <td style="color:#fc8181;">-₹${deduction.toLocaleString()}</td>
-                            <td><b>₹${net.toLocaleString()}</b></td>
-                            <td><button class="hrms-btn-sm" onclick="genPayslip('${e.id}')">🧾 Payslip</button></td>
-                        </tr>`}).join('')}
+                    <thead><tr><th>Employee</th><th>Designation</th><th>Paid Days</th><th>LOP</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>${entries.map(e=>`<tr>
+                        <td><span class="hrms-avatar sm">${escapeHTML((e.name||'?').charAt(0))}</span> ${escapeHTML(e.name)}</td>
+                        <td>${escapeHTML(e.designation||'')}</td>
+                        <td>${e.paidDays}</td>
+                        <td>${e.lopDays>0?`<span style="color:#e53e3e;">${e.lopDays}</span>`:'0'}</td>
+                        <td>₹${Number(e.gross).toLocaleString()}</td>
+                        <td>₹${Number(e.totalDed).toLocaleString()}</td>
+                        <td><b>₹${Number(e.netPay).toLocaleString()}</b></td>
+                        <td><span class="hrms-badge ${PAYROLL_BADGE[e.status]}">${e.status}</span></td>
+                        <td>${e.hasSalary?`<button class="hrms-btn-sm" onclick="genPayslip(${HRMS._payMonth},${HRMS._payYear},${e.employeeId})">🧾 Payslip</button>`:'<span style="color:#a0aec0;">No salary set</span>'}</td>
+                    </tr>`).join('')}
                     </tbody>
                 </table>
             </div>`;
         }
+
+        async function runPayrollGenerate() {
+            const msg = document.getElementById('payMsg');
+            try {
+                const r = await apiFetch('/payroll/generate', { method: 'POST', body: { month: HRMS._payMonth, year: HRMS._payYear } });
+                if (msg) msg.innerHTML = '<div style="color:#48bb78;font-size:0.88rem;">✅ Generated for '+r.generated+' employee(s)'+(r.skipped.length?', '+r.skipped.length+' skipped':'')+'.</div>';
+            } catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; }
+            _cache.payrollPreview = null;
+            hrmsRenderModule('payroll');
+        }
+        async function runPayrollApproveAll() {
+            if (!confirm('Approve payroll for this month? This publishes payslips — employees will be able to see them.')) return;
+            try { await apiFetch('/payroll/approve-all', { method: 'POST', body: { month: HRMS._payMonth, year: HRMS._payYear } }); }
+            catch (e) { alert(e.message); return; }
+            _cache.payrollPreview = null;
+            hrmsRenderModule('payroll');
+        }
+        async function runPayrollLock() {
+            if (!confirm('Lock payroll for this month? Attendance can no longer be edited for this month once locked.')) return;
+            try { await apiFetch('/payroll/lock', { method: 'POST', body: { month: HRMS._payMonth, year: HRMS._payYear } }); }
+            catch (e) { alert(e.message); return; }
+            _cache.payrollPreview = null;
+            hrmsRenderModule('payroll');
+        }
+        window.runPayrollGenerate = runPayrollGenerate; window.runPayrollApproveAll = runPayrollApproveAll; window.runPayrollLock = runPayrollLock;
 
         // ── Doc opener (Blob URL — avoids popup blocker) ─────────────────
         // ── Number to Words (Indian system) ──────────────────────────────
@@ -5073,31 +5629,47 @@
         }
         window.openDoc = openDoc;
 
-        function genPayslip(id) {
-            var e = HRMS.employees.find(function(x){return x.id===id;});
+        // month, year are always passed by callers now. employeeId is passed
+        // by staff viewing someone else's payslip from the preview table;
+        // when omitted the API resolves it from the caller's own login
+        // (used by the employee "My Payslips" view).
+        async function genPayslip(month, year, employeeId) {
+            var q = '/payroll/payslip?month=' + month + '&year=' + year + (employeeId!=null ? '&employeeId=' + employeeId : '');
+            var data;
+            try { data = await apiFetch(q); }
+            catch (err) { alert(err.message); return; }
+
+            var e = data.employee, entry = data.entry, bank = data.bank, stat = data.statutory, lv = data.leave;
             // All employee fields are admin/HR-editable free text — escape before
             // embedding in the generated HTML document to prevent stored XSS.
-            var safeId    = escapeHTML(e.id);
+            var safeId    = escapeHTML(e.emp_code || e.id);
             var safeName  = escapeHTML(e.name);
-            var safeDesig = escapeHTML(e.designation);
-            var safeDept  = escapeHTML(e.dept);
-            var safeJoined= escapeHTML(e.joined||'---');
+            var safeDesig = escapeHTML(e.designation||'');
+            var safeDept  = escapeHTML(e.dept||'');
+            var safeJoined= escapeHTML((e.joined||'---').slice ? String(e.joined||'---').slice(0,10) : '---');
             var safeStatus= escapeHTML(e.status);
-            var basic    = e.salary;
-            var hra      = Math.round(basic * 0.40);
-            var convey   = Math.round(basic * 0.05);
-            var medical  = Math.round(basic * 0.03);
-            var special  = Math.round(basic * 0.10);
-            var lta      = Math.round(basic * 0.05);
-            var grossEarn= basic + hra + convey + medical + special + lta;
-            var pf       = Math.round(basic * 0.12);
-            var profTax  = 200;
-            var incomeTax= Math.round(basic * 0.05);
-            var totalDed = pf + profTax + incomeTax;
-            var netPay   = grossEarn - totalDed;
-            var now      = new Date();
-            var month    = now.toLocaleString('default',{month:'long',year:'numeric'});
-            var daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+            var basic    = Number(entry.basic)||0;
+            var hra      = Number(entry.hra)||0;
+            var convey   = Number(entry.conveyance)||0;
+            var medical  = Number(entry.medical)||0;
+            var special  = Number(entry.special)||0;
+            var otherEarn= Number(entry.otherEarn)||0;
+            var grossEarn= Number(entry.gross)||0;
+            var pf       = Number(entry.empPf)||0;
+            var esi      = Number(entry.empEsi)||0;
+            var profTax  = Number(entry.profTax)||0;
+            var incomeTax= Number(entry.tds)||0;
+            var otherDed = Number(entry.otherDed)||0;
+            var totalDed = Number(entry.totalDed)||0;
+            var netPay   = Number(entry.netPay)||0;
+            var month_   = MONTH_NAMES[month] + ' ' + year;
+            var daysInMonth = entry.daysInMonth;
+            var bankName = bank ? escapeHTML(bank.bank_name||'---') : '---';
+            var acctNo   = bank ? escapeHTML(bank.account_no||'---') : '---';
+            var payMode  = bank ? escapeHTML(bank.pay_mode||'Bank Transfer') : 'Bank Transfer';
+            var panNo    = stat ? escapeHTML(stat.pan||'---') : '---';
+            var pfNo     = stat ? escapeHTML(stat.pf_number||'---') : '---';
+            var leaveTotal = lv ? lv.total : 0, leaveUsed = lv ? lv.used : 0, leaveBal = lv ? lv.balance : 0;
 
             var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payslip - ' + safeName + '</title>'
               + '<style>'
@@ -5136,8 +5708,8 @@
               + '<div class="hdr-left"><h1>LeoMox IT Solutions</h1>'
               + '<p>Kolanukonda, Mangalagiri, Guntur, Andhra Pradesh<br>info@leomox.in | +91 9491401514</p></div>'
               + '<div class="hdr-right"><div class="badge">SALARY SLIP</div>'
-              + '<p style="margin-top:6px;font-size:10px;color:#555">Pay Period: <b>' + month + '</b></p>'
-              + '<p style="font-size:10px;color:#555">Days in Month: <b>' + daysInMonth + '</b> &nbsp; Days Paid: <b>' + daysInMonth + '</b></p>'
+              + '<p style="margin-top:6px;font-size:10px;color:#555">Pay Period: <b>' + month_ + '</b></p>'
+              + '<p style="font-size:10px;color:#555">Days in Month: <b>' + daysInMonth + '</b> &nbsp; Days Paid: <b>' + entry.paidDays + '</b></p>'
               + '</div></div>'
 
               + '<div class="info-grid">'
@@ -5149,17 +5721,17 @@
               + '<div class="info-row"><span class="info-label">Joined</span><span class="info-val">' + safeJoined + '</span></div></div>'
 
               + '<div class="info-section"><div class="info-head">Payment Details</div>'
-              + '<div class="info-row"><span class="info-label">Bank</span><span class="info-val">---</span></div>'
-              + '<div class="info-row"><span class="info-label">Account No.</span><span class="info-val">---</span></div>'
-              + '<div class="info-row"><span class="info-label">PAN</span><span class="info-val">---</span></div>'
-              + '<div class="info-row"><span class="info-label">PF No.</span><span class="info-val">---</span></div>'
-              + '<div class="info-row"><span class="info-label">Pay Mode</span><span class="info-val">Bank Transfer</span></div></div>'
+              + '<div class="info-row"><span class="info-label">Bank</span><span class="info-val">' + bankName + '</span></div>'
+              + '<div class="info-row"><span class="info-label">Account No.</span><span class="info-val">' + acctNo + '</span></div>'
+              + '<div class="info-row"><span class="info-label">PAN</span><span class="info-val">' + panNo + '</span></div>'
+              + '<div class="info-row"><span class="info-label">PF No.</span><span class="info-val">' + pfNo + '</span></div>'
+              + '<div class="info-row"><span class="info-label">Pay Mode</span><span class="info-val">' + payMode + '</span></div></div>'
 
               + '<div class="info-section"><div class="info-head">Leave Details</div>'
-              + '<div class="info-row"><span class="info-label">Total Leaves</span><span class="info-val">24</span></div>'
-              + '<div class="info-row"><span class="info-label">Used</span><span class="info-val">0</span></div>'
-              + '<div class="info-row"><span class="info-label">Balance</span><span class="info-val">24</span></div>'
-              + '<div class="info-row"><span class="info-label">LOP Days</span><span class="info-val">0</span></div>'
+              + '<div class="info-row"><span class="info-label">Total Leaves</span><span class="info-val">' + leaveTotal + '</span></div>'
+              + '<div class="info-row"><span class="info-label">Used</span><span class="info-val">' + leaveUsed + '</span></div>'
+              + '<div class="info-row"><span class="info-label">Balance</span><span class="info-val">' + leaveBal + '</span></div>'
+              + '<div class="info-row"><span class="info-label">LOP Days</span><span class="info-val">' + entry.lopDays + '</span></div>'
               + '<div class="info-row"><span class="info-label">Status</span><span class="info-val">' + safeStatus + '</span></div></div></div>'
 
               + '<div class="earn-ded">'
@@ -5169,18 +5741,18 @@
               + '<div class="col-row"><span>Conveyance Allowance</span><span>' + convey.toLocaleString() + '</span></div>'
               + '<div class="col-row"><span>Medical Allowance</span><span>' + medical.toLocaleString() + '</span></div>'
               + '<div class="col-row"><span>Special Allowance</span><span>' + special.toLocaleString() + '</span></div>'
-              + '<div class="col-row"><span>Leave Travel Allowance (LTA)</span><span>' + lta.toLocaleString() + '</span></div>'
+              + '<div class="col-row"><span>Other Earnings</span><span>' + otherEarn.toLocaleString() + '</span></div>'
               + '<div class="col-row" style="color:#aaa"><span>Arrears</span><span>0</span></div>'
               + '<div class="col-row" style="color:#aaa"><span>Bonus</span><span>0</span></div>'
               + '<div class="col-row total-row"><span>Gross Earnings</span><span>Rs.' + grossEarn.toLocaleString() + '</span></div></div>'
 
               + '<div class="ded-col"><div class="col-head"><span>Deductions</span><span>Amount (Rs.)</span></div>'
-              + '<div class="col-row"><span>Provident Fund (PF @ 12%)</span><span>' + pf.toLocaleString() + '</span></div>'
+              + '<div class="col-row"><span>Provident Fund (PF)</span><span>' + pf.toLocaleString() + '</span></div>'
+              + '<div class="col-row"><span>ESI</span><span>' + esi.toLocaleString() + '</span></div>'
               + '<div class="col-row"><span>Professional Tax</span><span>' + profTax.toLocaleString() + '</span></div>'
               + '<div class="col-row"><span>Income Tax (TDS)</span><span>' + incomeTax.toLocaleString() + '</span></div>'
-              + '<div class="col-row" style="color:#aaa"><span>ESI</span><span>0</span></div>'
+              + '<div class="col-row" style="color:#aaa"><span>Other Deductions</span><span>' + otherDed.toLocaleString() + '</span></div>'
               + '<div class="col-row" style="color:#aaa"><span>Loan Recovery</span><span>0</span></div>'
-              + '<div class="col-row" style="color:#aaa"><span>&nbsp;</span><span></span></div>'
               + '<div class="col-row" style="color:#aaa"><span>&nbsp;</span><span></span></div>'
               + '<div class="col-row" style="color:#aaa"><span>&nbsp;</span><span></span></div>'
               + '<div class="col-row total-row"><span>Total Deductions</span><span>Rs.' + totalDed.toLocaleString() + '</span></div></div></div>'
@@ -5200,7 +5772,7 @@
               + '<div style="text-align:center;margin-top:18px">'
               + '<button onclick="window.print()" style="background:#1a6b6b;color:#fff;border:none;padding:10px 28px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold">Print / Save as PDF</button>'
               + '</div></body></html>';
-            openDoc(doc, 'Payslip_' + e.name.replace(/ /g, '_') + '.html');
+            openDoc(doc, 'Payslip_' + e.name.replace(/ /g, '_') + '_' + month + '_' + year + '.html');
         }
         window.genPayslip = genPayslip;
 
@@ -5642,6 +6214,7 @@
 
         function renderSettings() {
             const u = HRMS.currentUser || {};
+            if (u.role === 'admin') setTimeout(loadAuditLog, 0);
             return `
             <div class="hrms-card">
                 <h4>Change Password</h4>
@@ -5657,8 +6230,35 @@
             <div class="hrms-card" style="margin-top:1.2rem;">
                 <h4>Company Info</h4>
                 <p style="color:#9aa5b4;font-size:0.88rem;margin-bottom:0.5rem;">Managed under the <b>Website</b> tab, which controls what's shown to visitors on the public site.</p>
-            </div>`;
+            </div>
+            ${u.role==='admin'?`<div class="hrms-card" style="margin-top:1.2rem;" id="auditCard">
+                <div class="hrms-toolbar" style="margin-bottom:0.5rem;">
+                    <h4 style="margin:0;">Audit Log</h4>
+                    <button class="hrms-btn-sm" style="margin-left:auto;" onclick="loadAuditLog()">🔄 Refresh</button>
+                </div>
+                <div id="auditLogWrap"><p style="color:#718096;">Loading…</p></div>
+            </div>`:''}`;
         }
+
+        async function loadAuditLog() {
+            const wrap = document.getElementById('auditLogWrap');
+            if (!wrap) return;
+            wrap.innerHTML = '<p style="color:#718096;">Loading…</p>';
+            let rows;
+            try { rows = await apiFetch('/audit?limit=50'); }
+            catch (e) { wrap.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; return; }
+            if (!rows.length) { wrap.innerHTML = '<p style="color:#a0aec0;font-size:0.85rem;">No activity recorded yet.</p>'; return; }
+            wrap.innerHTML = '<div class="hrms-table-wrap"><table class="hrms-table">'
+                + '<thead><tr><th>When</th><th>User</th><th>Action</th><th>Module</th><th>Record</th></tr></thead><tbody>'
+                + rows.map(r => `<tr>
+                    <td>${escapeHTML(String(r.created_at).replace('T',' ').slice(0,19))}</td>
+                    <td>${escapeHTML(r.user_id||'system')} <span class="hrms-badge">${escapeHTML(r.role||'')}</span></td>
+                    <td>${escapeHTML(r.action)}</td>
+                    <td>${escapeHTML(r.module||'')}</td>
+                    <td>${escapeHTML(r.record_id||'')}</td>
+                </tr>`).join('') + '</tbody></table></div>';
+        }
+        window.loadAuditLog = loadAuditLog;
 
         async function changeOwnPassword() {
             const currentPassword = document.getElementById('cpw_current').value;
