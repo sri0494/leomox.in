@@ -3890,8 +3890,8 @@
                 <div class="cpg-map-col fade-in">
                     <h2>Get In Touch</h2>
                     <div class="cpg-map-frame">
-                        <iframe src="https://www.google.com/maps?q=Kolanukonda,+Mangalagiri,+Guntur,+Andhra+Pradesh&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="LeoMox IT Solutions location"></iframe>
-                        <a class="cpg-map-open-link" href="https://www.google.com/maps/search/?api=1&query=Kolanukonda,+Mangalagiri,+Guntur,+Andhra+Pradesh" target="_blank" rel="noopener">Open in Google Maps ↗</a>
+                        <iframe id="cpg-map-iframe" src="https://www.google.com/maps?q=Kolanukonda,+Mangalagiri,+Guntur,+Andhra+Pradesh&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="LeoMox IT Solutions location"></iframe>
+                        <a class="cpg-map-open-link" id="cpg-map-link" href="https://www.google.com/maps/search/?api=1&query=Kolanukonda,+Mangalagiri,+Guntur,+Andhra+Pradesh" target="_blank" rel="noopener">Open in Google Maps ↗</a>
                     </div>
                 </div>
                 <div class="cpg-form-col fade-in">
@@ -4109,7 +4109,7 @@
             <div class="footer-section">
                 <h4>Contact Us</h4>
                 <ul>
-                    <li style="color: #bdc3c7;">Besides Modal Dairy Store,<br>RS Furniture Building,<br>Kolanukonda, Mangalagiri,<br>Guntur, Andhra Pradesh</li>
+                    <li id="site-footer-address" style="color: #bdc3c7;">Besides Modal Dairy Store,<br>RS Furniture Building,<br>Kolanukonda, Mangalagiri,<br>Guntur, Andhra Pradesh</li>
                     <li id="site-footer-phone" style="color: #bdc3c7; margin-top: 1rem;">📱 +91 9491401514</li>
                     <li id="site-footer-email" style="margin-top: 0.5rem;"><span id="footer-email-link"></span></li>
                 </ul>
@@ -5356,9 +5356,16 @@
                     }).join('') + '</div></div>';
             }
 
+<<<<<<< HEAD
             html += '<div class="hrms-card"><h4>'+(HRMS.me?'My ':'')+'Requests</h4><div class="hrms-table-wrap"><table class="hrms-table">'
                 + '<thead><tr>'+(staff&&!HRMS.me?'<th>Employee</th>':'')+'<th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Reason</th><th>Actions</th></tr></thead><tbody>'
                 + myRequests.map(r => `<tr>
+=======
+            const colCount = (staff && !HRMS.me) ? 8 : 7;
+            html += '<div class="hrms-card"><h4>'+(HRMS.me?'My ':'')+'Requests</h4><div class="hrms-table-wrap"><table class="hrms-table">'
+                + '<thead><tr>'+(staff&&!HRMS.me?'<th>Employee</th>':'')+'<th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Reason</th><th>Actions</th></tr></thead><tbody>'
+                + (myRequests.length ? myRequests.map(r => `<tr>
+>>>>>>> a967d8c (update latest applicaton changes)
                     ${staff&&!HRMS.me?`<td>${escapeHTML(r.employee_name)}</td>`:''}
                     <td>${escapeHTML(r.leave_type_name)}${r.half_day?' (half-day)':''}</td>
                     <td>${escapeHTML(String(r.from_date).slice(0,10))}</td>
@@ -5367,7 +5374,11 @@
                     <td><span class="hrms-badge ${LEAVE_BADGE[r.status]||'new'}">${escapeHTML(r.status)}</span></td>
                     <td>${escapeHTML(r.reason||'')}</td>
                     <td>${['Submitted','Manager Approved'].includes(r.status)?`<button class="hrms-btn-sm danger" onclick="cancelLeaveRequest(${r.id})">Cancel</button>`:'—'}</td>
+<<<<<<< HEAD
                 </tr>`).join('') + '</tbody></table></div></div>';
+=======
+                </tr>`).join('') : `<tr><td colspan="${colCount}" style="text-align:center;color:#a0aec0;padding:1.5rem;">${HRMS.me?'You have no leave requests yet — use "+ Apply for Leave" above to submit one.':'No leave requests have been submitted yet.'}</td></tr>`) + '</tbody></table></div></div>';
+>>>>>>> a967d8c (update latest applicaton changes)
 
             if (staff && pendingManager.length) {
                 html += '<div class="hrms-card"><h4>Pending Manager Approval</h4><div class="hrms-table-wrap"><table class="hrms-table">'
@@ -5670,6 +5681,14 @@
             var panNo    = stat ? escapeHTML(stat.pan||'---') : '---';
             var pfNo     = stat ? escapeHTML(stat.pf_number||'---') : '---';
             var leaveTotal = lv ? lv.total : 0, leaveUsed = lv ? lv.used : 0, leaveBal = lv ? lv.balance : 0;
+<<<<<<< HEAD
+=======
+            var sc = HRMS.siteContent || {};
+            var letterheadCompany = escapeHTML(sc.company_name || 'LeoMox IT Solutions');
+            var letterheadAddress = escapeHTML(sc.address || 'Kolanukonda, Mangalagiri, Guntur, Andhra Pradesh');
+            var letterheadEmail   = escapeHTML(sc.email || 'info@leomox.in');
+            var letterheadPhone   = escapeHTML(sc.phone || '+91 9491401514');
+>>>>>>> a967d8c (update latest applicaton changes)
 
             var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payslip - ' + safeName + '</title>'
               + '<style>'
@@ -5705,8 +5724,8 @@
               + '</style></head><body>'
 
               + '<div class="hdr">'
-              + '<div class="hdr-left"><h1>LeoMox IT Solutions</h1>'
-              + '<p>Kolanukonda, Mangalagiri, Guntur, Andhra Pradesh<br>info@leomox.in | +91 9491401514</p></div>'
+              + '<div class="hdr-left"><h1>' + letterheadCompany + '</h1>'
+              + '<p>' + letterheadAddress + '<br>' + letterheadEmail + ' | ' + letterheadPhone + '</p></div>'
               + '<div class="hdr-right"><div class="badge">SALARY SLIP</div>'
               + '<p style="margin-top:6px;font-size:10px;color:#555">Pay Period: <b>' + month_ + '</b></p>'
               + '<p style="font-size:10px;color:#555">Days in Month: <b>' + daysInMonth + '</b> &nbsp; Days Paid: <b>' + entry.paidDays + '</b></p>'
@@ -5898,6 +5917,11 @@
             var safeStatus  = escapeHTML(inv.status);
             var safeClient  = escapeHTML(inv.client||'---');
             var safeAddr    = escapeHTML(inv.addr||'');
+            var sc = HRMS.siteContent || {};
+            var letterheadCompany = escapeHTML(sc.company_name || 'LeoMox IT Solutions');
+            var letterheadAddress = escapeHTML(sc.address || 'Kolanukonda, Mangalagiri, Guntur, AP - 522503');
+            var letterheadEmail   = escapeHTML(sc.email || 'info@leomox.in');
+            var letterheadPhone   = escapeHTML(sc.phone || '+91 9491401514');
             var safeGstin   = escapeHTML(inv.gstin||'');
             var safeTerms   = escapeHTML(inv.terms||'Net 30 days');
             var rows = inv.items.map(function(it,idx){
@@ -5934,8 +5958,8 @@
               + '.sig-line{border-top:1px solid #555;margin-top:36px;padding-top:5px;font-size:9.5px;color:#555;text-align:center}'
               + '@media print{body{padding:0}button{display:none!important}}'
               + '</style></head><body><div class="page-border">'
-              + '<div class="hdr"><div class="company"><h1>LeoMox IT Solutions</h1>'
-              + '<p>Kolanukonda, Mangalagiri, Guntur, AP - 522503<br>info@leomox.in | +91 9491401514</p></div>'
+              + '<div class="hdr"><div class="company"><h1>' + letterheadCompany + '</h1>'
+              + '<p>' + letterheadAddress + '<br>' + letterheadEmail + ' | ' + letterheadPhone + '</p></div>'
               + '<div style="text-align:right"><div class="inv-title">TAX INVOICE</div><br>'
               + '<div class="inv-meta"><b>Invoice No.:</b> ' + safeId + '<br><b>Date:</b> ' + safeDate + '<br>'
               + (safeDue?'<b>Due Date:</b> '+safeDue+'<br>':'')
@@ -6172,10 +6196,34 @@
             var emailEl = document.getElementById('site-footer-email');
             if (emailEl && c.email) emailEl.innerHTML = '<a href="mailto:' + encodeURIComponent(c.email) + '" style="color:#66D12F;text-decoration:none;">✉️ ' + escapeHTML(c.email) + '</a>';
 
+            // Floating WhatsApp button — same phone number as the rest of the
+            // site, so it never points at a stale number once the admin
+            // changes it under Website → Contact & Company Info.
+            var waEl = document.getElementById('wa-fab-link');
+            if (waEl && c.phone) {
+                var waDigits = String(c.phone).replace(/[^0-9]/g, '');
+                var waCompany = c.company_name || 'LeoMox';
+                waEl.href = 'https://wa.me/' + waDigits + '?text=' + encodeURIComponent('Hello ' + waCompany + '! I need help with your services.');
+            }
+
             // Contact Us page info cards
             setText('cpg-address', c.address);
             setText('cpg-phone',   c.phone);
             setText('cpg-email',   c.email);
+
+            // Footer address — previously static regardless of the saved
+            // address; now kept in sync like the footer phone/email already were.
+            setText('site-footer-address', c.address);
+
+            // Contact page map — re-centers on the saved address instead of
+            // silently pointing at wherever the office used to be.
+            if (c.address) {
+                var mapQuery = encodeURIComponent(c.address);
+                var mapFrame = document.getElementById('cpg-map-iframe');
+                if (mapFrame) mapFrame.src = 'https://www.google.com/maps?q=' + mapQuery + '&output=embed';
+                var mapLink = document.getElementById('cpg-map-link');
+                if (mapLink) mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + mapQuery;
+            }
 
             // Social links — icons always stay visible; only the destination
             // updates once a real URL is saved in the admin panel. (Hiding
@@ -6337,49 +6385,72 @@
         // ── Leo Smart Chatbot (Offline) ──────────────────────────────────
         var chatOpen = false;
 
-        var CHAT_KB = [
+        // Built fresh on every message from the live site content, so every
+        // phone/email/address/company mention the bot gives — not just the
+        // few dedicated "dynamic" entries below — reflects whatever the
+        // admin currently has saved under Website, not a fixed snapshot.
+        function buildChatKB(sc) {
+            sc = sc || {};
+            var phone   = escapeHTML(sc.phone || '+91 9491401514');
+            var phoneTel = (sc.phone || '+919491401514').replace(/[^0-9+]/g, '');
+            var email   = escapeHTML(sc.email || 'info@leomox.in');
+            var address = escapeHTML(sc.address || 'Kolanukonda, Mangalagiri, Guntur, AP');
+            var hours   = escapeHTML(sc.working_hours || 'Mon–Sat, 9:00 AM – 6:00 PM');
+            var company = escapeHTML(sc.company_name || 'LeoMox IT Solutions');
+            var uptime  = escapeHTML(sc.stat_uptime || '99.9%');
+            var delivered = escapeHTML(sc.stat_delivered || '2M+');
+            var clients = escapeHTML(sc.stat_clients || '10+');
+            var callLine = '📞 <a href="tel:' + phoneTel + '">' + phone + '</a>';
+            var emailLine = '✉️ <a href="mailto:' + email + '">' + email + '</a>';
+
+            return [
             { p: ['hi','hello','hey','good morning','good evening','namaste','vanakkam','hlo','hii'],
-              r: ['👋 Hello! Welcome to LeoMox IT Solutions. I am Leo, your virtual assistant.<br><br>How can I help you today? 😊',
-                  '👋 Hi there! I am Leo from LeoMox IT Solutions. Ask me about our SMS, WhatsApp, Voice or API services!'] },
+              r: ['👋 Hello! Welcome to ' + company + '. I am Leo, your virtual assistant.<br><br>How can I help you today? 😊',
+                  '👋 Hi there! I am Leo from ' + company + '. Ask me about our SMS, WhatsApp, Voice or API services!'] },
             { p: ['services','what do you offer','offerings','products','what you provide'],
               r: ['We offer:<br><br>📱 <b>SMS</b> — Promotional, Transactional, OTP<br>📞 <b>Voice</b> — OBD Calls, Conference<br>💬 <b>WhatsApp Business</b> — Messaging & Chatbot<br>🌐 <b>RCS Messaging</b><br>📋 <b>DLT Compliance</b><br>👨‍💻 <b>Developer APIs</b><br>🔗 <b>Short URL</b><br>💻 <b>Web Development</b><br><br>Which service would you like to know more about?'] },
             { p: ['sms','bulk sms','promotional sms','transactional','otp','text message'],
-              r: ['📱 <b>SMS Services:</b><br><br>✅ Promotional SMS — Offers and campaigns<br>✅ Transactional SMS — Alerts and confirmations<br>✅ OTP SMS — Fast one-time passwords<br><br>💰 From Rs.0.10/SMS (Promo) | Rs.0.15/SMS (Trans)<br><br>📞 <a href="tel:+919491401514">+91 9491401514</a> for custom pricing!'] },
+              r: ['📱 <b>SMS Services:</b><br><br>✅ Promotional SMS — Offers and campaigns<br>✅ Transactional SMS — Alerts and confirmations<br>✅ OTP SMS — Fast one-time passwords<br><br>💰 From Rs.0.10/SMS (Promo) | Rs.0.15/SMS (Trans)<br><br>' + callLine + ' for custom pricing!'] },
             { p: ['whatsapp','wa','waba','whatsapp business','whatsapp api'],
-              r: ['💬 <b>WhatsApp Business Solutions:</b><br><br>✅ Promotional WhatsApp — Media & catalogs<br>✅ Utility WhatsApp — Updates via API<br>✅ WhatsApp Chatbot — 24/7 automation<br><br>💰 From Rs.0.30 per message<br><br>📧 <a href="mailto:info@leomox.in">info@leomox.in</a> to get started!'] },
+              r: ['💬 <b>WhatsApp Business Solutions:</b><br><br>✅ Promotional WhatsApp — Media & catalogs<br>✅ Utility WhatsApp — Updates via API<br>✅ WhatsApp Chatbot — 24/7 automation<br><br>💰 From Rs.0.30 per message<br><br>' + emailLine + ' to get started!'] },
             { p: ['voice','obd','obd call','ivr','voice call','conference'],
-              r: ['📞 <b>Voice Solutions:</b><br><br>✅ OBD Calls — Pre-recorded outbound calls<br>✅ Voice Calls — Customer alerts and engagement<br>✅ Voice Conference — Multi-party calling<br><br>💰 OBD from Rs.0.12 per call<br><br>📞 <a href="tel:+919491401514">+91 9491401514</a> for a demo!'] },
+              r: ['📞 <b>Voice Solutions:</b><br><br>✅ OBD Calls — Pre-recorded outbound calls<br>✅ Voice Calls — Customer alerts and engagement<br>✅ Voice Conference — Multi-party calling<br><br>💰 OBD from Rs.0.12 per call<br><br>' + callLine + ' for a demo!'] },
             { p: ['rcs','rich communication','rcs message'],
-              r: ['🌐 <b>RCS Messaging:</b><br><br>Next-gen SMS with images, buttons, carousels and branding directly on Android phones.<br><br>✅ Higher engagement than plain SMS<br>✅ Branded sender with logo<br>✅ Read receipts and analytics<br><br>📞 <a href="tel:+919491401514">+91 9491401514</a> to learn more!'] },
+              r: ['🌐 <b>RCS Messaging:</b><br><br>Next-gen SMS with images, buttons, carousels and branding directly on Android phones.<br><br>✅ Higher engagement than plain SMS<br>✅ Branded sender with logo<br>✅ Read receipts and analytics<br><br>' + callLine + ' to learn more!'] },
             { p: ['dlt','trai','dlt registration','compliance'],
-              r: ['📋 <b>DLT Compliance:</b><br><br>TRAI mandates DLT registration for all commercial SMS. We help with:<br><br>✅ Entity registration<br>✅ Header (Sender ID) registration<br>✅ Template registration and approval<br><br>📧 <a href="mailto:info@leomox.in">info@leomox.in</a> to get started!'] },
+              r: ['📋 <b>DLT Compliance:</b><br><br>TRAI mandates DLT registration for all commercial SMS. We help with:<br><br>✅ Entity registration<br>✅ Header (Sender ID) registration<br>✅ Template registration and approval<br><br>' + emailLine + ' to get started!'] },
             { p: ['api','developer','sdk','integrate','rest api','documentation'],
-              r: ['👨‍💻 <b>Developer APIs:</b><br><br>✅ RESTful SMS, WhatsApp, Voice APIs<br>✅ Sandbox for testing<br>✅ PHP, Python, Node.js, Java SDKs<br>✅ Detailed documentation provided<br><br>📞 <a href="tel:+919491401514">+91 9491401514</a> for API access!'] },
+              r: ['👨‍💻 <b>Developer APIs:</b><br><br>✅ RESTful SMS, WhatsApp, Voice APIs<br>✅ Sandbox for testing<br>✅ PHP, Python, Node.js, Java SDKs<br>✅ Detailed documentation provided<br><br>' + callLine + ' for API access!'] },
             { p: ['price','pricing','cost','rate','charges','how much','fee','package','plan'],
-              r: ['💰 <b>Pricing (Approximate):</b><br><br>📱 SMS — From Rs.0.10/msg<br>💬 WhatsApp — From Rs.0.30/msg<br>📞 OBD Calls — From Rs.0.12/call<br>🌐 RCS — Contact for pricing<br><br>✅ Free trial available!<br>📞 <a href="tel:+919491401514">+91 9491401514</a> for volume discounts.'] },
+              r: ['💰 <b>Pricing (Approximate):</b><br><br>📱 SMS — From Rs.0.10/msg<br>💬 WhatsApp — From Rs.0.30/msg<br>📞 OBD Calls — From Rs.0.12/call<br>🌐 RCS — Contact for pricing<br><br>✅ Free trial available!<br>' + callLine + ' for volume discounts.'] },
             { p: ['free trial','trial','demo','test','try'],
-              r: ['🎉 Yes! LeoMox offers a <b>free trial</b> for new customers!<br><br>📞 <a href="tel:+919491401514">+91 9491401514</a><br>📧 <a href="mailto:info@leomox.in">info@leomox.in</a><br><br>Our team will set up your trial account quickly!'] },
+              r: ['🎉 Yes! ' + company + ' offers a <b>free trial</b> for new customers!<br><br>' + callLine + '<br>' + emailLine + '<br><br>Our team will set up your trial account quickly!'] },
             { p: ['contact','phone','call','support','help','address','location','office','email'],
-              r: ['📞 <b>Contact LeoMox:</b><br><br>📱 <a href="tel:+919491401514">+91 9491401514</a><br>✉️ <a href="mailto:info@leomox.in">info@leomox.in</a><br>📍 Kolanukonda, Mangalagiri, Guntur, AP<br>🕘 Mon–Sat, 9:00 AM – 6:00 PM'] },
+              r: ['📞 <b>Contact ' + company + ':</b><br><br>' + callLine + '<br>' + emailLine + '<br>📍 ' + address + '<br>🕘 ' + hours] },
             { p: ['about','who are you','leomox','company','tell me about'],
-              r: ['🏢 <b>LeoMox IT Solutions</b> is a leading digital communication company in Guntur, Andhra Pradesh.<br><br>We specialize in Bulk SMS, WhatsApp Business, Voice solutions, RCS, DLT compliance and Web Development.<br><br>✅ 99.9% uptime | 2M+ messages delivered | 10+ clients 🚀'] },
+              r: ['🏢 <b>' + company + '</b> is a leading digital communication company in Guntur, Andhra Pradesh.<br><br>We specialize in Bulk SMS, WhatsApp Business, Voice solutions, RCS, DLT compliance and Web Development.<br><br>✅ ' + uptime + ' uptime | ' + delivered + ' messages delivered | ' + clients + ' clients 🚀'] },
             { p: ['short url','url','link shortener'],
-              r: ['🔗 <b>Short URL Service:</b><br><br>✅ Shorten URLs for SMS campaigns<br>✅ Click tracking and analytics<br>✅ Reduces SMS character count<br><br>📞 <a href="tel:+919491401514">+91 9491401514</a> for more info.'] },
+              r: ['🔗 <b>Short URL Service:</b><br><br>✅ Shorten URLs for SMS campaigns<br>✅ Click tracking and analytics<br>✅ Reduces SMS character count<br><br>' + callLine + ' for more info.'] },
             { p: ['website','web development','web design','portal'],
-              r: ['💻 <b>Web Development:</b><br><br>✅ Business websites<br>✅ Customer portals and dashboards<br>✅ HR and management systems<br>✅ API integrations<br><br>📧 <a href="mailto:info@leomox.in">info@leomox.in</a> to discuss your project.'] },
+              r: ['💻 <b>Web Development:</b><br><br>✅ Business websites<br>✅ Customer portals and dashboards<br>✅ HR and management systems<br>✅ API integrations<br><br>' + emailLine + ' to discuss your project.'] },
             { p: ['get started','start','begin','signup','register'],
-              r: ['🚀 <b>Get Started:</b><br><br>1️⃣ Contact us via phone or email<br>2️⃣ Share your requirements<br>3️⃣ Get a free trial account<br>4️⃣ Integrate and go live!<br><br>📞 <a href="tel:+919491401514">+91 9491401514</a>'] },
+              r: ['🚀 <b>Get Started:</b><br><br>1️⃣ Contact us via phone or email<br>2️⃣ Share your requirements<br>3️⃣ Get a free trial account<br>4️⃣ Integrate and go live!<br><br>' + callLine] },
             { p: ['thank','thanks','thank you','ok','okay','great','got it'],
               r: ['😊 You are welcome! Anything else I can help with?',
                   '🙏 Happy to help! Feel free to ask anytime.',
                   '👍 Great! Do not hesitate to reach out if you need anything!'] },
             { p: ['bye','goodbye','see you','take care'],
-              r: ['👋 Goodbye! Thank you for visiting LeoMox IT Solutions. Have a great day! 😊'] }
-        ];
+              r: ['👋 Goodbye! Thank you for visiting ' + company + '. Have a great day! 😊'] }
+            ];
+        }
 
         function leoReply(msg) {
             // Always read latest site content dynamically
             var sc = HRMS.siteContent;
+            // Rebuilt every call (not a one-time snapshot) so a company-info
+            // edit made in the Website tab shows up on the very next message,
+            // without needing a page reload.
+            var CHAT_KB = buildChatKB(sc);
 
             // Build dynamic entries from live site content
             // (site content is admin-editable, so it's escaped before going into
@@ -6764,7 +6835,7 @@
 
     <!-- AI Chatbot + WhatsApp FAB -->
     <div class="chat-fab-wrap" id="chatFabWrap">
-        <a class="wa-fab" href="https://wa.me/919491401514?text=Hello%20LeoMox!%20I%20need%20help%20with%20your%20services." target="_blank" rel="noopener">
+        <a class="wa-fab" id="wa-fab-link" href="https://wa.me/919491401514?text=Hello%20LeoMox!%20I%20need%20help%20with%20your%20services." target="_blank" rel="noopener">
             <span class="fab-label">WhatsApp Us</span>
             <svg viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.875-1.426A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.946 7.946 0 01-4.073-1.115l-.29-.174-3.01.88.847-3.093-.19-.312A7.954 7.954 0 014 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/></svg>
         </a>

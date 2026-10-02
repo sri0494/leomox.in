@@ -283,3 +283,58 @@ UI yet; role→module access is still the same coarse mapping in
 added to it. Building a full per-user permission editor against that
 catalog would be a good next step if you want finer control than the
 current 4 fixed roles.
+<<<<<<< HEAD
+=======
+
+## Chatbot & "dynamic content" audit (this pass)
+
+Your screenshots prompted a check of whether the public site actually
+reflects admin-edited content everywhere it should — the answer was
+**partially**: the Contact page cards and footer phone/email already
+updated correctly, but several other spots were silently hardcoded and
+would never change no matter what was saved under Website → Contact &
+Company Info. Found and fixed:
+
+- **The chatbot's knowledge base was the main culprit.** `CHAT_KB` was a
+  static array built once with literal strings (`+91 9491401514`,
+  `info@leomox.in`, the office address, "99.9% uptime | 2M+ delivered |
+  10+ clients", etc.) baked into ~12 reply templates. Worse, because the
+  catch-all `contact` entry's keyword list (`contact`, `phone`, `support`,
+  `help`, `address`, ...) scored higher than the newer dynamic lookups for
+  several of those same words, **clicking the "📞 Contact" quick-reply
+  button specifically returned the old hardcoded info even when a newer
+  dynamic path existed for narrower queries like "phone" alone.** `CHAT_KB`
+  is now `buildChatKB(siteContent)`, rebuilt fresh on every message, so
+  every reply — not just the few already-dynamic ones — reflects whatever
+  is currently saved, and the scoring-precedence quirk stops mattering
+  because both paths now produce the same correct answer either way.
+- **The floating WhatsApp button** (bottom-right bubble) linked to a fixed
+  `wa.me/919491401514` regardless of the saved phone number. Now updates
+  from the same `phone` field as everything else.
+- **The footer address** and the **Contact page's embedded Google Map**
+  (iframe + "Open in Google Maps" link) had no `id` at all, so
+  `applyWebsiteContent()` could never touch them — they'd show the
+  original launch address forever. Both are now wired in.
+- **Payslip and invoice print letterheads** showed a hardcoded "LeoMox IT
+  Solutions" name/address/email/phone rather than the configured company
+  info — fixed to pull from the same source.
+
+None of this needs a new database column or a backend change — every
+field used here (`company_name`, `phone`, `email`, `address`,
+`working_hours`, `about_description`, `stat_*`) already existed in
+`site_content` and was already editable from the Website tab; it just
+wasn't being *read* consistently on the public-facing side. A page reload
+isn't even required after saving — `HRMS.siteContent` is updated in memory
+the moment Save succeeds, so the very next chatbot message already reflects it.
+
+## Leave page empty-state (this pass)
+
+The Leave tab's request table rendered as a bare header with no rows and
+no indication why when there were zero requests yet (as in a fresh
+install) — now shows a plain-language message ("You have no leave
+requests yet…" / "No leave requests have been submitted yet.") instead of
+a confusing blank table. Also worth knowing: the **Admin** account shown
+in your screenshots isn't linked to an employee record (that's done via
+the "Login User" dropdown on an employee's profile), which is why it sees
+no "+ Apply for Leave" button or balance cards — that's expected, not a bug.
+>>>>>>> a967d8c (update latest applicaton changes)
