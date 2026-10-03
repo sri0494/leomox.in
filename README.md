@@ -283,8 +283,6 @@ UI yet; role→module access is still the same coarse mapping in
 added to it. Building a full per-user permission editor against that
 catalog would be a good next step if you want finer control than the
 current 4 fixed roles.
-<<<<<<< HEAD
-=======
 
 ## Chatbot & "dynamic content" audit (this pass)
 
@@ -337,4 +335,94 @@ a confusing blank table. Also worth knowing: the **Admin** account shown
 in your screenshots isn't linked to an employee record (that's done via
 the "Login User" dropdown on an employee's profile), which is why it sees
 no "+ Apply for Leave" button or balance cards — that's expected, not a bug.
->>>>>>> a967d8c (update latest applicaton changes)
+
+## Social media buttons & Users-tab employee linking (this pass)
+
+**Found and fixed a real bug:** the page has a generic "in-page anchor
+router" that runs once at load, attaching a click handler to every
+`<a href="#">` that lacks its own `onclick`. The four footer social icons
+(Facebook/Instagram/LinkedIn/YouTube) matched that selector because they
+start as `href="#"` placeholders until an admin saves a real URL. That
+handler calls `e.preventDefault()` unconditionally — so even after
+`applyWebsiteContent()` later updated the icon's `href` to a real external
+URL, the click was still being swallowed by the leftover listener from
+page load, and the browser's normal "follow this link" behavior never
+ran. Clicking a social icon looked like it did nothing. Fixed by excluding
+`.footer-social-icon` from that router's selector. (The floating WhatsApp
+button and the portal login buttons were not affected — they never start
+with a bare `#`, so this particular bug didn't apply to them.)
+
+**Added:** a "Linked Employee" column on the Users tab with a one-click
+🔗 **Link to employee** / ✖ **Unlink** action, so connecting a login to an
+employee record (which is what turns on leave/attendance/payslip
+self-service for that account) can be done from either direction —
+Users → pick an employee, or Employees → pick a login — instead of only
+the latter.
+
+### About your screenshot
+
+Swetha's Leave tab correctly showed "No employee record is linked to your
+login yet" — that's the app working as designed, not a bug: her `employees`
+row simply hasn't been connected to her `swetha` login yet. Fix it from
+either tab: **Users → find `swetha` → 🔗 Link to employee** (new this
+pass), or **Employees → edit her profile → Login User → swetha → Save**.
+Once linked, her login immediately gets leave balances/apply, check-in/out,
+the attendance calendar, and payslip downloads — all three were already
+built (see the next section) and just need that one link made per employee.
+
+## What was already in place (confirmed working, not new this pass)
+
+Re-reading your message against the current code, these three were already
+fully built in an earlier round and just needed verifying, not building:
+- **Leave via employee login**, with the Manager → HR two-step approval
+  queue and a "Tracking" column showing exactly which stage a request is
+  at and the rejection reason if declined — visible in the employee's own
+  "My Requests" table, not just to HR/Manager.
+- **Payslip download by calendar year/month**, bounded from the employee's
+  actual joining month through the current month — a dedicated selector
+  above their payslip history, not just a flat list. ("Download" opens the
+  payslip and triggers the browser print dialog; choosing "Save as PDF"
+  there is how it's saved to disk — there's no separate PDF-generation
+  step on the server.)
+- **Attendance calendar with hover popover** — a month grid with a colored
+  dot per day; hovering any date pops up that day's status, check-in time,
+  and check-out time, with Prev/Next month navigation.
+
+All three were syntax-checked and cross-referenced against their backend
+routes again as part of this pass to make sure they're still intact.
+
+## Invoice print & payment-status reliability (this pass)
+
+**Print:** `openDoc()` (used by both Invoice Print and the payslip viewer)
+previously wrote the document into a hidden, off-screen iframe
+(`position:fixed;top:-9999px;visibility:hidden`) and called `.print()` on
+it, falling back to `window.open()` only if that threw. Two real problems
+with that: (1) several browsers either refuse to print hidden/off-screen
+iframe content, or print a blank page, because it was never actually laid
+out on-screen; (2) the fallback `window.open()` ran from inside an async
+`iframe.onload` callback, outside the original click's "user gesture"
+window — so if it ever did fall back, popup blockers silently swallowed it
+with no error shown. `openDoc()` now opens a real new tab directly and
+synchronously, right in the click handler, and writes the document into
+it. Both templates already have their own visible "Print / Save as PDF"
+button once that tab opens. If the tab is still blocked for some reason,
+it now falls back to an actual file download instead of a silent no-op,
+with an on-screen explanation.
+
+**Payment status:** read through and re-simulated `toggleInvStatus()` and
+the backend's `PUT /api/invoices/:id` directly with realistic data (see
+below) — no bug found in that logic itself; the PUT payload and backend
+handling are both correct. What *was* a real problem: `apiFetch()` handled
+an expired session (401) by silently clearing the logged-in user in the
+background with no visible feedback — so if your token had expired
+mid-session, clicking Mark Paid would fail, but the only sign was
+whatever `alert()` the calling code happened to show, and the screen
+behind it stayed exactly as it was. It now redirects straight to the login
+screen with a clear "Your session has expired" message, so an expired
+session is never mistaken for "this button is broken."
+
+If Mark Paid still doesn't persist after this update, the most likely
+explanation now is that the deployed server isn't running the latest
+`routes/invoices.routes.js` yet — worth confirming the Render deploy
+picked up this version, and checking the browser console / Network tab
+for the actual PUT request's response on a click.

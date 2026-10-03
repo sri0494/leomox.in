@@ -2154,6 +2154,23 @@
         .hds-num { font-size:1.8rem; font-weight:800; color:#1A1A72; }
         .hds-label { font-size:0.78rem; color:#718096; margin-top:2px; }
         .hrms-dash-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; width:100%; }
+
+        /* My Attendance calendar */
+        .att-cal-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
+        .att-cal-dow { text-align:center; font-size:0.72rem; font-weight:700; color:#a0aec0; padding-bottom:4px; text-transform:uppercase; }
+        .att-cal-cell { position:relative; aspect-ratio:1/1; border:1px solid #e2e8f0; border-radius:8px; padding:4px; cursor:default; transition:background 0.15s; }
+        .att-cal-cell:not(.empty):hover { background:#f7fafc; border-color:#a0e8c0; }
+        .att-cal-cell.empty { border:none; }
+        .att-cal-daynum { font-size:0.75rem; color:#4a5568; font-weight:600; }
+        .att-cal-dot { position:absolute; bottom:5px; right:5px; width:9px; height:9px; border-radius:50%; }
+        .att-cal-popover { position:fixed; z-index:900; background:#1a202c; color:#fff; font-size:0.78rem; line-height:1.5; padding:0.6rem 0.75rem; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.25); pointer-events:none; max-width:220px; }
+        .att-cal-legend { display:flex; flex-wrap:wrap; gap:0.9rem; margin-top:0.9rem; font-size:0.76rem; color:#718096; }
+        .att-cal-legend span { display:inline-flex; align-items:center; gap:4px; }
+        .att-cal-legend i { width:9px; height:9px; border-radius:50%; display:inline-block; }
+        @media (max-width:640px) {
+            .att-cal-cell { aspect-ratio:auto; min-height:38px; }
+            .att-cal-dow { font-size:0.62rem; }
+        }
         .hrms-list-row { display:flex; align-items:center; gap:0.75rem; padding:0.65rem 0; border-bottom:1px solid #f0f4f8; }
         .hrms-list-row b { color:#2d3748; font-size:0.9rem; }
         .hrms-list-row small { color:#718096; font-size:0.78rem; }
@@ -4253,8 +4270,13 @@
         // (skip anchors that already have their own inline onclick handler —
         // e.g. buttons that call showPage()/openContactPopup() directly — so
         // this generic router doesn't run a second, conflicting navigation
-        // right after theirs and stomp on it)
-        document.querySelectorAll('a[href^="#"]:not([onclick])').forEach(anchor => {
+        // right after theirs and stomp on it. Also skip the footer social
+        // icons: they start as href="#" placeholders until an admin saves a
+        // real URL under Website, and this listener is attached once at page
+        // load — without this exclusion it permanently preventDefaults every
+        // click on them, even after their href is later updated to a real
+        // external link, silently breaking Facebook/Instagram/LinkedIn/YouTube.)
+        document.querySelectorAll('a[href^="#"]:not([onclick]):not(.footer-social-icon)').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 e.preventDefault();
                 const href = this.getAttribute('href');
@@ -4419,7 +4441,23 @@
             });
             let data = null;
             try { data = await res.json(); } catch (e) { /* no body */ }
-            if (res.status === 401) { localStorage.removeItem('lm_token'); HRMS.currentUser = null; }
+            if (res.status === 401) {
+                // Previously this just cleared currentUser silently, leaving
+                // whatever screen was on-screen untouched — an action (like
+                // Mark Paid) would throw, the catch block's alert() would
+                // fire, but the page behind it stayed exactly as it was with
+                // no indication *why* the save didn't take, and the next
+                // click would quietly fail the same way. Routing straight to
+                // the login screen makes an expired session impossible to
+                // mistake for "this button doesn't work."
+                var wasLoggedIn = !!HRMS.currentUser;
+                localStorage.removeItem('lm_token');
+                HRMS.currentUser = null;
+                if (wasLoggedIn) {
+                    showPage('login');
+                    alert('Your session has expired. Please log in again.');
+                }
+            }
             if (!res.ok) throw new Error((data && data.error) || ('Request failed (' + res.status + ')'));
             return data;
         }
@@ -4456,6 +4494,7 @@
             // is opened (same pattern as contactRequests above) rather than
             // fetched on every login, since not every role visits them.
             leaveBalances: null, leaveRequests: null, payrollPreview: null, myPayslips: null, dashboardExtra: null,
+            myAttCalData: null, myAttCalKey: null,
         };
 
         const HRMS = {
@@ -5114,14 +5153,18 @@
             <div id="userFormWrap" style="display:none;" class="hrms-card"></div>
             <div class="hrms-table-wrap">
                 <table class="hrms-table">
-                    <thead><tr><th>User ID</th><th>Name</th><th>Role</th><th>Permissions</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>User ID</th><th>Name</th><th>Role</th><th>Permissions</th><th>Linked Employee</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody>${HRMS.users.map(u=>{
                         const r = HRMS.roles[u.role];
+                        const linkedEmp = HRMS.employees.find(e => e.user_id === u.id);
                         return `<tr>
                             <td><code>${escapeHTML(u.id)}</code></td>
                             <td>${escapeHTML(u.name)}</td>
                             <td><span class="hrms-role-badge" style="background:${r.color}22;color:${r.color}">${r.label}</span></td>
                             <td><div class="hrms-perm-tags">${r.permissions.map(p=>`<span class="hrms-perm-tag">${p}</span>`).join('')}</div></td>
+                            <td>${linkedEmp
+                                ? `${escapeHTML(linkedEmp.name)} <button class="hrms-btn-sm" title="Unlink" onclick="unlinkUserEmployee('${linkedEmp.id}')">✖</button>`
+                                : `<button class="hrms-btn-sm" onclick="showLinkUserEmployee('${u.id}')">🔗 Link to employee</button>`}</td>
                             <td><span class="hrms-badge ${u.active?'paid':'pending'}">${u.active?'Active':'Disabled'}</span></td>
                             <td>
                                 <button class="hrms-btn-sm" onclick="toggleUser('${u.id}')">${u.active?'🔒':'🔓'}</button>
@@ -5213,6 +5256,55 @@
         }
         window.showAddUser=showAddUser; window.saveUser=saveUser; window.toggleUser=toggleUser; window.editUser=editUser; window.deleteUser=deleteUser;
 
+        // Linking a login to an employee record is what turns on self-service
+        // (apply leave, check in/out, view own payslips) for that account —
+        // this offers it right from the Users tab too, since "create the
+        // login, then link it" is the more natural order when onboarding
+        // someone new, rather than only being reachable from the Employees form.
+        function showLinkUserEmployee(userId) {
+            const wrap = document.getElementById('userFormWrap');
+            if (!wrap) return;
+            const unlinked = HRMS.employees.filter(e => !e.user_id);
+            wrap.style.display = 'block';
+            wrap.innerHTML = `
+            <h4>Link "${escapeHTML(userId)}" to an Employee Record</h4>
+            ${unlinked.length ? `
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>Employee</label>
+                    <select id="lk_emp">${unlinked.map(e=>`<option value="${e.id}">${escapeHTML(e.name)}${e.emp_code?' ('+escapeHTML(e.emp_code)+')':''}</option>`).join('')}</select>
+                </div>
+            </div>
+            <div id="lkMsg" style="margin-top:0.5rem;"></div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+                <button class="hrms-btn-primary" onclick="saveLinkUserEmployee('${userId}')">💾 Link</button>
+                <button class="hrms-btn-secondary" onclick="document.getElementById('userFormWrap').style.display='none'">Cancel</button>
+            </div>` : `<p style="color:#718096;">Every employee record already has a login linked. Add a new employee first (Employees tab), or unlink an existing one before relinking it here.</p>
+            <button class="hrms-btn-secondary" style="margin-top:0.75rem;" onclick="document.getElementById('userFormWrap').style.display='none'">Close</button>`}`;
+        }
+        window.showLinkUserEmployee = showLinkUserEmployee;
+
+        async function saveLinkUserEmployee(userId) {
+            const empId = document.getElementById('lk_emp').value;
+            const msg = document.getElementById('lkMsg');
+            try { await apiFetch('/employees/' + encodeURIComponent(empId), { method: 'PUT', body: { user_id: userId } }); }
+            catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; return; }
+            const rows = await apiFetch('/employees');
+            HRMS.employees = rows.map(normalizeEmployee);
+            document.getElementById('userFormWrap').style.display = 'none';
+            hrmsRenderModule('users');
+        }
+        window.saveLinkUserEmployee = saveLinkUserEmployee;
+
+        async function unlinkUserEmployee(empId) {
+            if (!confirm('Unlink this employee from their login? They will lose self-service access (apply leave, check in/out, view payslips) until relinked.')) return;
+            try { await apiFetch('/employees/' + encodeURIComponent(empId), { method: 'PUT', body: { user_id: null } }); }
+            catch (e) { alert(e.message); return; }
+            const idx = HRMS.employees.findIndex(e => e.id == empId);
+            if (idx > -1) HRMS.employees[idx].user_id = null;
+            hrmsRenderModule('users');
+        }
+        window.unlinkUserEmployee = unlinkUserEmployee;
+
         // ── ATTENDANCE ────────────────────────────────────────────────────
         const ATT_STATUSES = ['Present','Absent','Half Day','Leave','Holiday','Weekly Off','Work From Home','On Duty'];
 
@@ -5250,6 +5342,7 @@
                 </div>`;
             }
             if (!canMark && !HRMS.me) html = '<p style="color:#718096;">No employee record is linked to your login yet — ask HR to link it so you can check in.</p>';
+            else html += renderAttendanceCalendarSection();
             setTimeout(loadSelfAttendanceCard, 0);
             return html;
         }
@@ -5316,6 +5409,96 @@
         }
         window.selfCheckIn = selfCheckIn; window.selfCheckOut = selfCheckOut;
 
+        // ── My Attendance Calendar (self-service) ────────────────────────
+        const ATT_DOT_COLOR = {
+            Present:'#48bb78', Absent:'#e53e3e', 'Half Day':'#ed8936', Leave:'#4299e1',
+            Holiday:'#9f7aea', 'Weekly Off':'#a0aec0', 'Work From Home':'#38b2ac', 'On Duty':'#319795',
+        };
+        function daysInMonthJS(year, month) { return new Date(year, month, 0).getDate(); } // month is 1-12
+
+        function renderAttendanceCalendarSection() {
+            if (!HRMS.me) return '';
+            if (!HRMS._attCalMonth) { const t = new Date(); HRMS._attCalMonth = t.getMonth() + 1; HRMS._attCalYear = t.getFullYear(); }
+            const m = HRMS._attCalMonth, y = HRMS._attCalYear;
+            const key = m + '-' + y;
+            if (_cache.myAttCalKey !== key) setTimeout(loadMyAttendanceCalendar, 0);
+
+            const recByDate = {};
+            (_cache.myAttCalKey === key ? (_cache.myAttCalData || []) : []).forEach(r => { recByDate[String(r.date).slice(0, 10)] = r; });
+            const dim = daysInMonthJS(y, m);
+            const firstDow = new Date(y, m - 1, 1).getDay();
+            const todayStr = new Date().toISOString().slice(0, 10);
+
+            let cells = '';
+            for (let i = 0; i < firstDow; i++) cells += '<div class="att-cal-cell empty"></div>';
+            for (let d = 1; d <= dim; d++) {
+                const ds = y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                const rec = recByDate[ds];
+                const dotColor = rec ? (ATT_DOT_COLOR[rec.status] || '#cbd5e0') : '';
+                cells += '<div class="att-cal-cell" style="' + (ds === todayStr ? 'border-color:#2f855a;border-width:2px;' : '') + '" '
+                    + 'onmousemove="showAttCalPopover(event,\'' + ds + '\')" onmouseenter="showAttCalPopover(event,\'' + ds + '\')" onmouseleave="hideAttCalPopover()">'
+                    + '<div class="att-cal-daynum">' + d + '</div>'
+                    + (rec ? '<div class="att-cal-dot" style="background:' + dotColor + ';"></div>' : '')
+                    + '</div>';
+            }
+
+            return `<div class="hrms-card" style="margin-top:1.5rem;">
+                <div class="hrms-toolbar" style="margin-bottom:0.75rem;">
+                    <button class="hrms-btn-sm" onclick="shiftAttCal(-1)">‹ Prev</button>
+                    <h4 style="margin:0;flex:1;text-align:center;">My Attendance — ${MONTH_NAMES[m]} ${y}</h4>
+                    <button class="hrms-btn-sm" onclick="shiftAttCal(1)">Next ›</button>
+                </div>
+                <div class="att-cal-grid">
+                    ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="att-cal-dow">${d}</div>`).join('')}
+                    ${cells}
+                </div>
+                <div class="att-cal-legend">${Object.keys(ATT_DOT_COLOR).map(s=>`<span><i style="background:${ATT_DOT_COLOR[s]}"></i>${s}</span>`).join('')}</div>
+                <p style="color:#a0aec0;font-size:0.78rem;margin-top:0.6rem;">Hover over a date to see check-in/check-out times.</p>
+            </div>
+            <div id="attCalPopover" class="att-cal-popover" style="display:none;"></div>`;
+        }
+
+        async function loadMyAttendanceCalendar() {
+            if (!HRMS.me) { _cache.myAttCalData = []; return; }
+            const m = HRMS._attCalMonth, y = HRMS._attCalYear;
+            const key = m + '-' + y;
+            try { _cache.myAttCalData = await apiFetch('/attendance/employee/' + HRMS.me.id + '?month=' + m + '&year=' + y); }
+            catch (e) { _cache.myAttCalData = []; }
+            _cache.myAttCalKey = key;
+            if (HRMS.activeModule === 'attendance') hrmsRenderModule('attendance');
+        }
+
+        function shiftAttCal(delta) {
+            let m = (HRMS._attCalMonth || (new Date().getMonth() + 1)) + delta;
+            let y = HRMS._attCalYear || new Date().getFullYear();
+            if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+            HRMS._attCalMonth = m; HRMS._attCalYear = y;
+            hrmsRenderModule('attendance');
+        }
+        window.shiftAttCal = shiftAttCal;
+
+        function showAttCalPopover(evt, dateStr) {
+            const rec = (_cache.myAttCalData || []).find(r => String(r.date).slice(0, 10) === dateStr);
+            const pop = document.getElementById('attCalPopover');
+            if (!pop) return;
+            const inTime = rec && rec.check_in ? String(rec.check_in).slice(0, 5) : '—';
+            const outTime = rec && rec.check_out ? String(rec.check_out).slice(0, 5) : '—';
+            const status = rec ? rec.status : 'Not marked';
+            pop.innerHTML = '<b>' + dateStr + '</b><br>Status: ' + escapeHTML(status) + '<br>Check-in: ' + inTime + '<br>Check-out: ' + outTime
+                + (rec && rec.remarks ? '<br><i>' + escapeHTML(rec.remarks) + '</i>' : '');
+            pop.style.display = 'block';
+            var x = evt.clientX + 14, y = evt.clientY + 14;
+            if (x + 230 > window.innerWidth) x = evt.clientX - 230;
+            if (y + 110 > window.innerHeight) y = evt.clientY - 110;
+            pop.style.left = x + 'px';
+            pop.style.top = y + 'px';
+        }
+        function hideAttCalPopover() {
+            const pop = document.getElementById('attCalPopover');
+            if (pop) pop.style.display = 'none';
+        }
+        window.showAttCalPopover = showAttCalPopover; window.hideAttCalPopover = hideAttCalPopover;
+
         // ── LEAVE ─────────────────────────────────────────────────────────
         const LEAVE_BADGE = { Submitted:'new', 'Manager Approved':'new', 'HR Approved':'paid', Rejected:'pending', Cancelled:'pending' };
 
@@ -5332,6 +5515,24 @@
                 _cache.leaveRequests = [];
             }
             if (HRMS.activeModule === 'leave') hrmsRenderModule('leave');
+        }
+
+        // Shows exactly where a request stands in the Manager → HR approval
+        // chain, including the rejection remark at whichever stage stopped it —
+        // so an employee doesn't have to ask HR why their leave was declined.
+        function leaveTrackingHTML(r) {
+            var mgrLine;
+            if (r.manager_action === 'Approved') mgrLine = '✅ Manager approved';
+            else if (r.manager_action === 'Rejected') mgrLine = '✖ Manager: ' + escapeHTML(r.manager_remark || 'No reason given');
+            else mgrLine = '⏳ Awaiting manager';
+
+            var hrLine;
+            if (r.hr_action === 'Approved') hrLine = '✅ HR approved';
+            else if (r.hr_action === 'Rejected') hrLine = '✖ HR: ' + escapeHTML(r.hr_remark || 'No reason given');
+            else if (r.manager_action === 'Rejected' || r.status === 'Cancelled') hrLine = ''; // never reached HR
+            else hrLine = '⏳ Awaiting HR';
+
+            return '<div style="font-size:0.78rem;line-height:1.5;white-space:nowrap;">' + mgrLine + (hrLine ? '<br>' + hrLine : '') + '</div>';
         }
 
         function renderLeave() {
@@ -5356,29 +5557,20 @@
                     }).join('') + '</div></div>';
             }
 
-<<<<<<< HEAD
+            const colCount = (staff && !HRMS.me) ? 9 : 8;
             html += '<div class="hrms-card"><h4>'+(HRMS.me?'My ':'')+'Requests</h4><div class="hrms-table-wrap"><table class="hrms-table">'
-                + '<thead><tr>'+(staff&&!HRMS.me?'<th>Employee</th>':'')+'<th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Reason</th><th>Actions</th></tr></thead><tbody>'
-                + myRequests.map(r => `<tr>
-=======
-            const colCount = (staff && !HRMS.me) ? 8 : 7;
-            html += '<div class="hrms-card"><h4>'+(HRMS.me?'My ':'')+'Requests</h4><div class="hrms-table-wrap"><table class="hrms-table">'
-                + '<thead><tr>'+(staff&&!HRMS.me?'<th>Employee</th>':'')+'<th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Reason</th><th>Actions</th></tr></thead><tbody>'
+                + '<thead><tr>'+(staff&&!HRMS.me?'<th>Employee</th>':'')+'<th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Tracking</th><th>Reason</th><th>Actions</th></tr></thead><tbody>'
                 + (myRequests.length ? myRequests.map(r => `<tr>
->>>>>>> a967d8c (update latest applicaton changes)
                     ${staff&&!HRMS.me?`<td>${escapeHTML(r.employee_name)}</td>`:''}
                     <td>${escapeHTML(r.leave_type_name)}${r.half_day?' (half-day)':''}</td>
                     <td>${escapeHTML(String(r.from_date).slice(0,10))}</td>
                     <td>${escapeHTML(String(r.to_date).slice(0,10))}</td>
                     <td>${parseFloat(r.days)}</td>
                     <td><span class="hrms-badge ${LEAVE_BADGE[r.status]||'new'}">${escapeHTML(r.status)}</span></td>
+                    <td>${leaveTrackingHTML(r)}</td>
                     <td>${escapeHTML(r.reason||'')}</td>
                     <td>${['Submitted','Manager Approved'].includes(r.status)?`<button class="hrms-btn-sm danger" onclick="cancelLeaveRequest(${r.id})">Cancel</button>`:'—'}</td>
-<<<<<<< HEAD
-                </tr>`).join('') + '</tbody></table></div></div>';
-=======
                 </tr>`).join('') : `<tr><td colspan="${colCount}" style="text-align:center;color:#a0aec0;padding:1.5rem;">${HRMS.me?'You have no leave requests yet — use "+ Apply for Leave" above to submit one.':'No leave requests have been submitted yet.'}</td></tr>`) + '</tbody></table></div></div>';
->>>>>>> a967d8c (update latest applicaton changes)
 
             if (staff && pendingManager.length) {
                 html += '<div class="hrms-card"><h4>Pending Manager Approval</h4><div class="hrms-table-wrap"><table class="hrms-table">'
@@ -5492,6 +5684,50 @@
             if (HRMS.activeModule === 'payroll') hrmsRenderModule('payroll');
         }
 
+        // Lets an employee pick any Year/Month from their joining date up to
+        // the current month and pull up that payslip — rather than only
+        // being able to click through whatever happens to already be listed.
+        function buildPayslipMonthYearSelector() {
+            const now = new Date();
+            const curY = now.getFullYear(), curM = now.getMonth() + 1;
+            let joinY = curY, joinM = 1;
+            if (HRMS.me && HRMS.me.joined) {
+                const parts = String(HRMS.me.joined).slice(0, 10).split('-');
+                if (parts.length === 3 && parts[0].length === 4) { joinY = parseInt(parts[0], 10); joinM = parseInt(parts[1], 10); }
+            }
+            if (joinY > curY) { joinY = curY; joinM = curM; } // guards against a future-dated joining date
+
+            if (!HRMS._payslipYear) HRMS._payslipYear = curY;
+            const y = HRMS._payslipYear;
+            const minM = (y === joinY) ? joinM : 1;
+            const maxM = (y === curY) ? curM : 12;
+            if (!HRMS._payslipMonth || HRMS._payslipMonth < minM) HRMS._payslipMonth = minM;
+            if (HRMS._payslipMonth > maxM) HRMS._payslipMonth = maxM;
+
+            const years = [];
+            for (let yy = joinY; yy <= curY; yy++) years.push(yy);
+            const months = [];
+            for (let mm = minM; mm <= maxM; mm++) months.push(mm);
+
+            return `<div class="hrms-card">
+                <h4>Download Payslip</h4>
+                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+                    <div class="hrms-form-field" style="margin:0;"><label>Year</label>
+                        <select class="hrms-select-inline" onchange="HRMS._payslipYear=parseInt(this.value,10);HRMS._payslipMonth=null;hrmsRenderModule('payroll');">
+                            ${years.map(yy=>`<option value="${yy}" ${yy===y?'selected':''}>${yy}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="hrms-form-field" style="margin:0;"><label>Month</label>
+                        <select class="hrms-select-inline" onchange="HRMS._payslipMonth=parseInt(this.value,10);">
+                            ${months.map(mm=>`<option value="${mm}" ${mm===HRMS._payslipMonth?'selected':''}>${MONTH_NAMES[mm]}</option>`).join('')}
+                        </select>
+                    </div>
+                    <button class="hrms-btn-primary" onclick="genPayslip(HRMS._payslipMonth,HRMS._payslipYear)">🧾 View / Download Payslip</button>
+                </div>
+                <p style="color:#a0aec0;font-size:0.8rem;margin-top:0.6rem;">Available from your joining month (${MONTH_NAMES[joinM]} ${joinY}) through the current month. A month only opens once HR/Admin has approved that period's payroll.</p>
+            </div>`;
+        }
+
         function renderPayroll() {
             const isPayrollAdmin = can('users');        // admin only — approve/lock
             const isPayrollGen = can('payroll') && HRMS.currentUser.role !== 'employee'; // admin/hr — generate + preview
@@ -5501,7 +5737,8 @@
                 // Employee (and anyone else without payroll-staff access): just their own published payslips.
                 if (_cache.myPayslips === null) { setTimeout(loadMyPayslips, 0); return '<p style="color:#718096;">Loading your payslips…</p>'; }
                 const rows = _cache.myPayslips || [];
-                return '<div class="hrms-card"><h4>My Payslips</h4>' + (rows.length ? '<div class="hrms-table-wrap"><table class="hrms-table">'
+                return buildPayslipMonthYearSelector()
+                    + '<div class="hrms-card"><h4>Payslip History</h4>' + (rows.length ? '<div class="hrms-table-wrap"><table class="hrms-table">'
                     + '<thead><tr><th>Period</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th></th></tr></thead><tbody>'
                     + rows.map(r => `<tr>
                         <td>${MONTH_NAMES[r.month]} ${r.year}</td><td>₹${Number(r.gross).toLocaleString()}</td>
@@ -5598,44 +5835,45 @@
         window.numberToWords = numberToWords;
 
         // ── Doc Printer (iframe method — works on all browsers/GitHub Pages) ──
+        // Opens a generated document (invoice/payslip) in a real new tab.
+        //
+        // Previously this wrote into a hidden, off-screen iframe
+        // (position:fixed;top:-9999px;visibility:hidden) and called
+        // iframe.contentWindow.print() on it. That pattern is unreliable
+        // across browsers for exactly this use case: several browsers either
+        // refuse to print hidden/off-screen iframe content at all, or print
+        // a blank page, because the content was never actually laid out
+        // on-screen — and if that print() call threw, the fallback
+        // (window.open from inside an async iframe.onload callback) runs
+        // outside the original click's "user gesture" window, so popup
+        // blockers silently swallow it with no error the user ever sees.
+        // Opening a real tab directly and synchronously — right in the
+        // click handler, before any async gap — is both simpler and far
+        // more reliable, and both templates already include their own
+        // visible "Print / Save as PDF" button for the user to use once
+        // the tab is open.
         function openDoc(htmlStr, filename) {
             try {
-                // Create hidden iframe
-                var iframe = document.createElement('iframe');
-                iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none;visibility:hidden;';
-                iframe.id = 'printFrame_' + Date.now();
-                document.body.appendChild(iframe);
-
-                // Write content into iframe
-                var iDoc = iframe.contentDocument || iframe.contentWindow.document;
-                iDoc.open();
-                iDoc.write(htmlStr);
-                iDoc.close();
-
-                // Wait for content to load then print
-                iframe.onload = function() {
-                    try {
-                        iframe.contentWindow.focus();
-                        iframe.contentWindow.print();
-                    } catch(e) {
-                        // Fallback: open in new tab
-                        var blob = new Blob([htmlStr], {type:'text/html'});
-                        var url  = URL.createObjectURL(blob);
-                        window.open(url, '_blank');
-                    }
-                    // Clean up iframe after 30s
-                    setTimeout(function(){ 
-                        if(iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe); 
-                    }, 30000);
-                };
-
-                // Trigger onload for already-loaded iframes
-                if(iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
-                    iframe.onload();
+                var win = window.open('', '_blank');
+                if (!win) {
+                    // Popup blocked even for this synchronous, click-triggered
+                    // open — fall back to a downloadable file so the user
+                    // still gets the document instead of nothing at all.
+                    var blob = new Blob([htmlStr], { type: 'text/html' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url; a.download = filename || 'document.html';
+                    document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+                    alert('Your browser blocked the preview tab, so the document was downloaded instead — open the downloaded file to view or print it. Allowing popups for this site will let it open directly next time.');
+                    return;
                 }
-            } catch(err) {
+                win.document.open();
+                win.document.write(htmlStr);
+                win.document.close();
+            } catch (err) {
                 console.error('openDoc error:', err);
-                alert('Please allow popups for this site to print documents, or try a different browser.');
+                alert('Could not open the document. Please try again or use a different browser.');
             }
         }
         window.openDoc = openDoc;
@@ -5681,14 +5919,11 @@
             var panNo    = stat ? escapeHTML(stat.pan||'---') : '---';
             var pfNo     = stat ? escapeHTML(stat.pf_number||'---') : '---';
             var leaveTotal = lv ? lv.total : 0, leaveUsed = lv ? lv.used : 0, leaveBal = lv ? lv.balance : 0;
-<<<<<<< HEAD
-=======
             var sc = HRMS.siteContent || {};
             var letterheadCompany = escapeHTML(sc.company_name || 'LeoMox IT Solutions');
             var letterheadAddress = escapeHTML(sc.address || 'Kolanukonda, Mangalagiri, Guntur, Andhra Pradesh');
             var letterheadEmail   = escapeHTML(sc.email || 'info@leomox.in');
             var letterheadPhone   = escapeHTML(sc.phone || '+91 9491401514');
->>>>>>> a967d8c (update latest applicaton changes)
 
             var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payslip - ' + safeName + '</title>'
               + '<style>'
@@ -5886,13 +6121,17 @@
         }
 
         async function toggleInvStatus(id) {
+            // Invoice ids are numbers from the DB but arrive here as strings
+            // from the onclick="...('${i.id}')" attribute — loose equality
+            // (==) is used deliberately so "2" matches 2 (see the identical
+            // fix applied to employee ids elsewhere in this file).
             var arr = HRMS.invoices;
-            var inv = arr.find(function(i){return i.id===id;});
-            if (!inv) return;
+            var inv = arr.find(function(i){return i.id==id;});
+            if (!inv) { alert('Could not find that invoice — please refresh and try again.'); return; }
             var newStatus = inv.status==='Paid'?'Pending':'Paid';
             try {
                 var updated = await apiFetch('/invoices/' + encodeURIComponent(id), { method: 'PUT', body: { ...inv, status: newStatus } });
-                var idx = arr.findIndex(function(i){return i.id===id;});
+                var idx = arr.findIndex(function(i){return i.id==id;});
                 if (idx > -1) arr[idx] = updated;
                 HRMS.invoices = arr;
             } catch (e) { alert(e.message); return; }
@@ -5900,8 +6139,8 @@
         }
 
         function printInvoice(id) {
-            var inv = HRMS.invoices.find(function(i){return i.id===id;});
-            if (!inv) return;
+            var inv = HRMS.invoices.find(function(i){return i.id==id;});
+            if (!inv) { alert('Could not find that invoice — please refresh and try again.'); return; }
             var subtotal = inv.items.reduce(function(s,it){return s+(it.qty*it.rate);},0);
             var cgst  = Math.round(subtotal*0.09);
             var sgst  = Math.round(subtotal*0.09);
