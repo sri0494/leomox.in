@@ -44,6 +44,8 @@ app.use('/api/attendance',    require('./routes/attendance.routes'));
 app.use('/api/payroll',       require('./routes/payroll.routes'));
 app.use('/api/leave',         require('./routes/leave.routes'));
 app.use('/api/invoices',      require('./routes/invoices.routes'));
+app.use('/api/quotations',    require('./routes/quotations.routes'));
+app.use('/api/company-settings', require('./routes/companySettings.routes'));
 app.use('/api/contact',       require('./routes/contact.routes'));
 app.use('/api/site-content',  require('./routes/siteContent.routes'));
 app.use('/api/permissions',   require('./routes/permissions.routes'));

@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "db:seed": "node seed.js",
     "db:migrate": "node scripts/migrate.js",
-    "test": "node tests/hr.test.js && node tests/routes.test.js"
+    "test": "node tests/hr.test.js && node tests/billing.test.js && node tests/routes.test.js && node tests/quotations.test.js"
   },
   "engines": {
     "node": ">=18.0.0"

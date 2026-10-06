@@ -4495,6 +4495,7 @@
             // fetched on every login, since not every role visits them.
             leaveBalances: null, leaveRequests: null, payrollPreview: null, myPayslips: null, dashboardExtra: null,
             myAttCalData: null, myAttCalKey: null,
+            companySettings: null, quotations: null,
         };
 
         const HRMS = {
@@ -6032,33 +6033,418 @@
 
         // ── INVOICE ───────────────────────────────────────────────────────
         function renderInvoice() {
+            if (_cache.quotations === null) setTimeout(loadQuotations, 0);
             return '<div class="hrms-toolbar">'
-              + '<button class="hrms-btn-primary" onclick="showAddInvoice()">+ New Invoice</button>'
+              + '<button class="hrms-btn-primary" onclick="showAddInvoice()">+ New Invoice</button> '
+              + '<button class="hrms-btn-secondary" onclick="showAddFullInvoice()">+ New Full Invoice</button> '
+              + '<button class="hrms-btn-secondary" onclick="showAddQuotation()">+ New Quotation</button>'
               + '</div>'
               + '<div id="invFormWrap" style="display:none;" class="hrms-card"></div>'
+              + '<div id="invFullFormWrap" style="display:none;" class="hrms-card"></div>'
               + '<div class="hrms-table-wrap"><table class="hrms-table">'
               + '<thead><tr><th>Invoice #</th><th>Client</th><th>Amount</th><th>GST</th><th>Total</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>'
               + '<tbody>' + HRMS.invoices.map(function(i) {
-                  var amount = invoiceSubtotal(i);
-                  var gst = Math.round(amount * 0.18);
-                  var total = amount + gst;
+                  // Legacy (simple-form) invoices never set grand_total, so Amount/GST/
+                  // Total are derived client-side from `items` exactly as before. A
+                  // "rich" invoice (created via the full form, or from a converted
+                  // quotation) carries its own server-computed grand_total/cgst/sgst/igst,
+                  // which is what's shown instead — never recalculated client-side.
+                  var isRich = i.grand_total !== undefined && i.grand_total !== null;
+                  var amount = isRich ? Number(i.taxable_amount||0) + Number(i.discount_total||0) : invoiceSubtotal(i);
+                  var gst = isRich ? Number(i.cgst||0) + Number(i.sgst||0) + Number(i.igst||0) : Math.round(amount * 0.18);
+                  var total = isRich ? Number(i.grand_total||0) : amount + gst;
                   return '<tr>'
-                    + '<td><b>' + escapeHTML(i.id) + '</b></td>'
+                    + '<td><b>' + escapeHTML(i.invoice_number || i.id) + '</b>' + (i.quotation_id?' <span class="hrms-badge new" title="Converted from a quotation">from QTN</span>':'') + '</td>'
                     + '<td>' + escapeHTML(i.client) + '</td>'
                     + '<td>Rs.' + amount.toLocaleString() + '</td>'
                     + '<td>Rs.' + gst.toLocaleString() + '</td>'
                     + '<td><b>Rs.' + total.toLocaleString() + '</b></td>'
                     + '<td>' + i.date + '</td>'
                     + '<td><span class="hrms-badge ' + (i.status==='Paid'?'paid':'pending') + '">' + i.status + '</span></td>'
-                    + '<td><button class="hrms-btn-sm" onclick="printInvoice(\'' + i.id + '\')">Print</button> '
+                    + '<td style="white-space:nowrap;"><button class="hrms-btn-sm" onclick="printInvoice(\'' + i.id + '\')">Print</button> '
+                    + (isRich ? '<button class="hrms-btn-sm" onclick="showAddFullInvoice(' + i.id + ')">✏️</button> ' : '')
                     + '<button class="hrms-btn-sm" onclick="toggleInvStatus(\'' + i.id + '\')">' + (i.status==='Paid'?'Mark Pending':'Mark Paid') + '</button></td>'
                     + '</tr>';
-              }).join('') + '</tbody></table></div>';
+              }).join('') + '</tbody></table></div>'
+              + renderQuotationsSection();
         }
+
+        // ── QUOTATIONS ────────────────────────────────────────────────────
+        const QUOTE_BADGE = { Draft:'new', Sent:'new', Viewed:'new', Accepted:'paid', Rejected:'pending', Expired:'pending', Converted:'paid' };
+        const TAX_TYPE_OPTS = ['GST', 'IGST', 'Exempt', 'None'];
+
+        async function loadQuotations() {
+            try { _cache.quotations = await apiFetch('/quotations'); }
+            catch (e) { _cache.quotations = []; }
+            if (HRMS.activeModule === 'invoice') hrmsRenderModule('invoice');
+        }
+
+        function renderQuotationsSection() {
+            const rows = _cache.quotations;
+            return `
+            <div class="hrms-card" style="margin-top:1.5rem;">
+                <h4>Quotations</h4>
+                <div id="quoFormWrap" style="display:none;margin-bottom:1rem;"></div>
+                ${rows === null ? '<p style="color:#718096;">Loading…</p>' : (!rows.length ? '<p style="color:#a0aec0;font-size:0.85rem;">No quotations yet — use "+ New Quotation" above.</p>' : `
+                <div class="hrms-table-wrap"><table class="hrms-table">
+                    <thead><tr><th>Quotation #</th><th>Client</th><th>Date</th><th>Valid Until</th><th>Grand Total</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody>${rows.map(q => `<tr>
+                        <td><b>${escapeHTML(q.quotation_number)}</b></td>
+                        <td>${escapeHTML(q.client_name)}</td>
+                        <td>${escapeHTML(String(q.quotation_date).slice(0,10))}</td>
+                        <td>${escapeHTML(q.valid_until?String(q.valid_until).slice(0,10):'—')}</td>
+                        <td><b>₹${Number(q.grand_total).toLocaleString()}</b></td>
+                        <td><span class="hrms-badge ${QUOTE_BADGE[q.status]||'new'}">${escapeHTML(q.status)}</span></td>
+                        <td style="white-space:nowrap;">
+                            <button class="hrms-btn-sm" onclick="printQuotation(${q.id})">🧾 Print</button>
+                            ${q.status==='Draft'?`<button class="hrms-btn-sm" onclick="showAddQuotation(${q.id})">✏️</button>
+                                <button class="hrms-btn-sm" onclick="setQuotationStatus(${q.id},'Sent')">📤 Mark Sent</button>
+                                <button class="hrms-btn-sm danger" onclick="deleteQuotation(${q.id})">🗑️</button>`:''}
+                            ${q.status==='Sent'?`<button class="hrms-btn-sm" onclick="setQuotationStatus(${q.id},'Accepted')">✅ Accepted</button>
+                                <button class="hrms-btn-sm danger" onclick="setQuotationStatus(${q.id},'Rejected')">✖ Rejected</button>`:''}
+                            ${q.status==='Accepted'?`<button class="hrms-btn-primary" onclick="convertQuotation(${q.id})">➡️ Convert to Invoice</button>`:''}
+                            ${q.status==='Converted'&&q.converted_invoice_id?`<span style="color:#718096;font-size:0.8rem;">→ Invoice #${q.converted_invoice_id}</span>`:''}
+                        </td>
+                    </tr>`).join('')}</tbody>
+                </table></div>`)}
+            </div>`;
+        }
+
+        // Live client-side preview of one line's math — purely cosmetic;
+        // the server always recomputes and stores the authoritative figures
+        // on save, so a mismatched preview can never corrupt real data.
+        function quoLineMath(qty, rate, discPct, discAmt, taxPct, taxType) {
+            qty = parseFloat(qty) || 0; rate = parseFloat(rate) || 0;
+            const gross = qty * rate;
+            const dPct = parseFloat(discPct) || 0;
+            const dAmt = dPct > 0 ? gross * dPct / 100 : (parseFloat(discAmt) || 0);
+            const taxable = Math.max(gross - dAmt, 0);
+            const tPct = (taxType === 'Exempt' || taxType === 'None') ? 0 : (parseFloat(taxPct) || 0);
+            const tAmt = taxable * tPct / 100;
+            return { gross, dAmt, taxable, tAmt, lineTotal: taxable + tAmt };
+        }
+
+        // Every oninput/onchange below reads its own tbody's id via
+        // this.closest(...) rather than calling recalcQuoTotals() bare —
+        // this markup is shared between the Quotation form and the full
+        // Invoice form, so a bare no-args call would rescan .quo-item-row
+        // across BOTH forms' tables at once if they were ever both open,
+        // corrupting both totals. Scoping to the actual tbody id keeps each
+        // form's math strictly separate regardless of what else is mounted.
+        function quoItemRowHTML(idx, it) {
+            it = it || {};
+            return `
+            <tr class="quo-item-row" data-idx="${idx}">
+                <td><input class="qi-name" style="width:120px;" value="${escapeHTML(it.service_name||'')}" placeholder="Service/Product"></td>
+                <td><input class="qi-desc" style="width:110px;" value="${escapeHTML(it.description||'')}" placeholder="Description"></td>
+                <td><input class="qi-hsn" style="width:70px;" value="${escapeHTML(it.hsn_sac||'')}" placeholder="HSN/SAC"></td>
+                <td><input class="qi-qty" type="number" min="0" step="0.01" style="width:55px;" value="${it.quantity!=null?it.quantity:1}" oninput="recalcQuoTotals(this.closest('tbody').id)"></td>
+                <td><input class="qi-unit" style="width:55px;" value="${escapeHTML(it.unit||'Nos')}"></td>
+                <td><input class="qi-rate" type="number" min="0" step="0.01" style="width:80px;" value="${it.rate!=null?it.rate:''}" oninput="recalcQuoTotals(this.closest('tbody').id)"></td>
+                <td><input class="qi-discpct" type="number" min="0" max="100" step="0.01" style="width:55px;" value="${it.discount_percent||0}" oninput="recalcQuoTotals(this.closest('tbody').id)" title="Discount %"></td>
+                <td><input class="qi-taxpct" type="number" min="0" max="100" step="0.01" style="width:55px;" value="${it.tax_percent!=null?it.tax_percent:18}" oninput="recalcQuoTotals(this.closest('tbody').id)" title="Tax %"></td>
+                <td><select class="qi-taxtype" onchange="recalcQuoTotals(this.closest('tbody').id)">${opts(TAX_TYPE_OPTS, it.tax_type||'GST')}</select></td>
+                <td class="qi-linetotal" style="text-align:right;white-space:nowrap;">₹0</td>
+                <td><button class="hrms-btn-sm danger" onclick="var b=this.closest('tbody').id;this.closest('tr').remove();recalcQuoTotals(b);" title="Remove">✖</button></td>
+            </tr>`;
+        }
+
+        // bodyId/summaryId let the exact same row markup and math power both
+        // the Quotation form and the full Invoice form below — the line-item
+        // fields and GST logic are identical for both document types, only
+        // the container they live in differs.
+        function addQuoItemRow(it, bodyId) {
+            bodyId = bodyId || 'quoItemsBody'; // resolve once and reuse, so the recalc below is never accidentally left unscoped
+            const body = document.getElementById(bodyId);
+            if (!body) return;
+            const idx = body.children.length;
+            body.insertAdjacentHTML('beforeend', quoItemRowHTML(idx, it));
+            recalcQuoTotals(bodyId);
+        }
+        window.addQuoItemRow = addQuoItemRow;
+
+        function readQuoItems(bodyId) {
+            bodyId = bodyId || 'quoItemsBody';
+            const scope = document.getElementById(bodyId);
+            return Array.from((scope || document).querySelectorAll('.quo-item-row')).map(row => ({
+                service_name: row.querySelector('.qi-name').value.trim(),
+                description: row.querySelector('.qi-desc').value.trim(),
+                hsn_sac: row.querySelector('.qi-hsn').value.trim(),
+                quantity: parseFloat(row.querySelector('.qi-qty').value) || 0,
+                unit: row.querySelector('.qi-unit').value.trim() || 'Nos',
+                rate: parseFloat(row.querySelector('.qi-rate').value) || 0,
+                discount_percent: parseFloat(row.querySelector('.qi-discpct').value) || 0,
+                tax_percent: parseFloat(row.querySelector('.qi-taxpct').value),
+                tax_type: row.querySelector('.qi-taxtype').value,
+            })).filter(it => it.service_name);
+        }
+
+        function recalcQuoTotals(bodyId, summaryId) {
+            bodyId = bodyId || 'quoItemsBody';
+            const scope = document.getElementById(bodyId);
+            let subtotal = 0, discountTotal = 0, taxable = 0, cgst = 0, sgst = 0, igst = 0;
+            (scope || document).querySelectorAll('.quo-item-row').forEach(row => {
+                const qty = row.querySelector('.qi-qty').value, rate = row.querySelector('.qi-rate').value;
+                const discPct = row.querySelector('.qi-discpct').value, taxPct = row.querySelector('.qi-taxpct').value;
+                const taxType = row.querySelector('.qi-taxtype').value;
+                const m = quoLineMath(qty, rate, discPct, 0, taxPct, taxType);
+                row.querySelector('.qi-linetotal').textContent = '₹' + m.lineTotal.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                subtotal += m.gross; discountTotal += m.dAmt; taxable += m.taxable;
+                if (taxType === 'IGST') igst += m.tAmt; else if (taxType === 'GST') { cgst += m.tAmt / 2; sgst += m.tAmt / 2; }
+            });
+            const grand = Math.round(taxable + cgst + sgst + igst);
+            // Derived-by-convention fallback: "quoItemsBody" -> "quoTotalsSummary",
+            // "invfItemsBody" -> "invfTotalsSummary" — so the row-level inline
+            // handlers (which only know their own tbody id) still update the
+            // right summary without each form needing a separate code path.
+            const derivedSummaryId = bodyId ? bodyId.replace(/ItemsBody$/, 'TotalsSummary') : 'quoTotalsSummary';
+            const summary = document.getElementById(summaryId || derivedSummaryId);
+            if (summary) summary.innerHTML = `
+                <div class="hrms-list-row"><span>Subtotal</span><b>₹${subtotal.toLocaleString(undefined,{maximumFractionDigits:2})}</b></div>
+                <div class="hrms-list-row"><span>Discount</span><b>−₹${discountTotal.toLocaleString(undefined,{maximumFractionDigits:2})}</b></div>
+                <div class="hrms-list-row"><span>Taxable Amount</span><b>₹${taxable.toLocaleString(undefined,{maximumFractionDigits:2})}</b></div>
+                ${cgst>0?`<div class="hrms-list-row"><span>CGST</span><b>₹${cgst.toLocaleString(undefined,{maximumFractionDigits:2})}</b></div><div class="hrms-list-row"><span>SGST</span><b>₹${sgst.toLocaleString(undefined,{maximumFractionDigits:2})}</b></div>`:''}
+                ${igst>0?`<div class="hrms-list-row"><span>IGST</span><b>₹${igst.toLocaleString(undefined,{maximumFractionDigits:2})}</b></div>`:''}
+                <div class="hrms-list-row" style="font-size:1.05rem;"><span>Grand Total</span><b>₹${grand.toLocaleString()}</b></div>
+                <p style="color:#a0aec0;font-size:0.75rem;margin-top:0.25rem;">Preview only — the server recalculates and stores the final figures on save.</p>`;
+        }
+        window.recalcQuoTotals = recalcQuoTotals;
+
+        // Only one of the three invoice-area forms is ever shown at a time —
+        // keeps the page uncluttered and guarantees there's exactly one
+        // #quoItemsBody / #invfItemsBody in the DOM at once.
+        function hideOtherInvoiceForms(exceptId) {
+            ['quoFormWrap', 'invFullFormWrap', 'invFormWrap'].forEach(wid => {
+                if (wid === exceptId) return;
+                const el = document.getElementById(wid);
+                if (el) el.style.display = 'none';
+            });
+        }
+
+        async function showAddQuotation(id) {
+            const wrap = document.getElementById('quoFormWrap');
+            if (!wrap) return;
+            hideOtherInvoiceForms('quoFormWrap');
+            wrap.style.display = 'block';
+            let q = null;
+            if (id) {
+                try { q = await apiFetch('/quotations/' + id); }
+                catch (e) { alert(e.message); return; }
+            }
+            const settings = await loadCompanySettings();
+            wrap.innerHTML = `
+            <div class="hrms-card">
+                <h4>${q ? 'Edit' : 'New'} Quotation ${q ? '— ' + escapeHTML(q.quotation_number) : ''}</h4>
+                <h5 style="margin:0.75rem 0 0.5rem;color:#4a5568;">Quotation Details</h5>
+                <div class="hrms-form-grid">
+                    <div class="hrms-form-field"><label>Quotation Date</label><input type="date" id="qf_date" value="${escapeHTML(String((q&&q.quotation_date)||hr_todayStrSafe()).slice(0,10))}"></div>
+                    <div class="hrms-form-field"><label>Valid Until</label><input type="date" id="qf_valid" value="${escapeHTML(String((q&&q.valid_until)||'').slice(0,10))}"></div>
+                    <div class="hrms-form-field"><label>Reference Number</label><input id="qf_ref" value="${escapeHTML(q&&q.reference_number||'')}"></div>
+                    <div class="hrms-form-field"><label>Salesperson</label><input id="qf_sales" value="${escapeHTML(q&&q.salesperson||'')}"></div>
+                    <div class="hrms-form-field"><label>Payment Terms</label><input id="qf_payterms" value="${escapeHTML(q&&q.payment_terms||(settings&&settings.default_payment_terms)||'')}"></div>
+                    <div class="hrms-form-field"><label>Delivery/Implementation Timeline</label><input id="qf_delivery" value="${escapeHTML(q&&q.delivery_timeline||'')}"></div>
+                </div>
+                <h5 style="margin:1.1rem 0 0.5rem;color:#4a5568;">Customer Details</h5>
+                <div class="hrms-form-grid">
+                    <div class="hrms-form-field"><label>Client/Company Name *</label><input id="qf_client" value="${escapeHTML(q&&q.client_name||'')}"></div>
+                    <div class="hrms-form-field"><label>Contact Person</label><input id="qf_contact" value="${escapeHTML(q&&q.contact_person||'')}"></div>
+                    <div class="hrms-form-field"><label>Mobile</label><input id="qf_mobile" value="${escapeHTML(q&&q.mobile||'')}"></div>
+                    <div class="hrms-form-field"><label>Email</label><input type="email" id="qf_email" value="${escapeHTML(q&&q.email||'')}"></div>
+                    <div class="hrms-form-field"><label>GSTIN</label><input id="qf_gstin" style="text-transform:uppercase;" value="${escapeHTML(q&&q.gstin||'')}"></div>
+                    <div class="hrms-form-field"><label>PAN</label><input id="qf_cpan" style="text-transform:uppercase;" value="${escapeHTML(q&&q.pan||'')}"></div>
+                    <div class="hrms-form-field"><label>State</label><input id="qf_state" value="${escapeHTML(q&&q.state||(settings&&settings.home_state)||'')}"></div>
+                    <div class="hrms-form-field"><label>Place of Supply</label><input id="qf_pos" value="${escapeHTML(q&&q.place_of_supply||(settings&&settings.home_state)||'')}" title="Decides CGST+SGST vs IGST"></div>
+                    <div class="hrms-form-field" style="grid-column:1/-1;"><label>Billing Address</label><input id="qf_baddr" value="${escapeHTML(q&&q.billing_address||'')}"></div>
+                    <div class="hrms-form-field" style="grid-column:1/-1;"><label>Service/Delivery Address</label><input id="qf_saddr" value="${escapeHTML(q&&q.service_address||'')}"></div>
+                </div>
+                <h5 style="margin:1.1rem 0 0.5rem;color:#4a5568;">Line Items</h5>
+                <div class="hrms-table-wrap"><table class="hrms-table" style="font-size:0.82rem;">
+                    <thead><tr><th>Service</th><th>Description</th><th>HSN/SAC</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Disc %</th><th>Tax %</th><th>Tax Type</th><th>Line Total</th><th></th></tr></thead>
+                    <tbody id="quoItemsBody"></tbody>
+                </table></div>
+                <button class="hrms-btn-sm" style="margin-top:0.5rem;" onclick="addQuoItemRow()">+ Add Item</button>
+                <div id="quoTotalsSummary" style="max-width:360px;margin-left:auto;margin-top:0.75rem;"></div>
+
+                <h5 style="margin:1.1rem 0 0.5rem;color:#4a5568;">Commercial Information</h5>
+                <div class="hrms-form-grid">
+                    <div class="hrms-form-field" style="grid-column:1/-1;"><label>Scope of Work</label><textarea id="qf_scope" rows="2" style="width:100%;">${escapeHTML(q&&q.scope_of_work||'')}</textarea></div>
+                    <div class="hrms-form-field" style="grid-column:1/-1;"><label>Deliverables</label><textarea id="qf_deliverables" rows="2" style="width:100%;">${escapeHTML(q&&q.deliverables||'')}</textarea></div>
+                    <div class="hrms-form-field"><label>Implementation Timeline</label><input id="qf_impl" value="${escapeHTML(q&&q.implementation_timeline||'')}"></div>
+                    <div class="hrms-form-field"><label>Payment Schedule</label><input id="qf_payschedule" value="${escapeHTML(q&&q.payment_schedule||'')}"></div>
+                    <div class="hrms-form-field"><label>Advance Payment %</label><input type="number" min="0" max="100" id="qf_advance" value="${q&&q.advance_payment_percent!=null?q.advance_payment_percent:''}"></div>
+                    <div class="hrms-form-field"><label>Balance Payment Terms</label><input id="qf_balanceterms" value="${escapeHTML(q&&q.balance_payment_terms||'')}"></div>
+                    <div class="hrms-form-field"><label>Support Period</label><input id="qf_support" value="${escapeHTML(q&&q.support_period||'')}"></div>
+                    <div class="hrms-form-field"><label>Warranty/AMC</label><input id="qf_warranty" value="${escapeHTML(q&&q.warranty_amc||'')}"></div>
+                    <div class="hrms-form-field"><label>Quote Validity</label><input id="qf_validity" value="${escapeHTML(q&&q.quote_validity||'')}"></div>
+                    <div class="hrms-form-field" style="grid-column:1/-1;"><label>Cancellation Terms</label><input id="qf_qcancel" value="${escapeHTML(q&&q.cancellation_terms||'')}"></div>
+                    <div class="hrms-form-field" style="grid-column:1/-1;"><label>Additional Charges</label><input id="qf_addlcharges" value="${escapeHTML(q&&q.additional_charges||'')}"></div>
+                    <div class="hrms-form-field" style="grid-column:1/-1;"><label>Exclusions</label><input id="qf_exclusions" value="${escapeHTML(q&&q.exclusions||'')}"></div>
+                    <div class="hrms-form-field" style="grid-column:1/-1;"><label>Notes</label><textarea id="qf_notes" rows="2" style="width:100%;">${escapeHTML(q&&q.notes||'')}</textarea></div>
+                </div>
+                <div id="qfMsg" style="margin-top:0.75rem;"></div>
+                <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+                    <button class="hrms-btn-primary" onclick="saveQuotation(${q?q.id:'null'})">💾 Save Draft</button>
+                    <button class="hrms-btn-secondary" onclick="document.getElementById('quoFormWrap').style.display='none'">Cancel</button>
+                </div>
+            </div>`;
+            const items = (q && q.items && q.items.length) ? q.items : [{}];
+            items.forEach(it => addQuoItemRow(it));
+        }
+        window.showAddQuotation = showAddQuotation;
+        function hr_todayStrSafe() { return new Date().toISOString().slice(0, 10); }
+
+        async function saveQuotation(id) {
+            const g = (gid) => { const el = document.getElementById(gid); return el ? el.value : ''; };
+            const payload = {
+                quotation_date: g('qf_date'), valid_until: g('qf_valid') || null, reference_number: g('qf_ref'),
+                salesperson: g('qf_sales'), payment_terms: g('qf_payterms'), delivery_timeline: g('qf_delivery'),
+                client_name: g('qf_client'), contact_person: g('qf_contact'), mobile: g('qf_mobile'), email: g('qf_email'),
+                gstin: g('qf_gstin'), pan: g('qf_cpan'), state: g('qf_state'), place_of_supply: g('qf_pos'),
+                billing_address: g('qf_baddr'), service_address: g('qf_saddr'),
+                scope_of_work: g('qf_scope'), deliverables: g('qf_deliverables'), implementation_timeline: g('qf_impl'),
+                payment_schedule: g('qf_payschedule'), advance_payment_percent: g('qf_advance') || null,
+                balance_payment_terms: g('qf_balanceterms'), support_period: g('qf_support'), warranty_amc: g('qf_warranty'),
+                quote_validity: g('qf_validity'), cancellation_terms: g('qf_qcancel'), additional_charges: g('qf_addlcharges'),
+                exclusions: g('qf_exclusions'), notes: g('qf_notes'),
+                items: readQuoItems('quoItemsBody'),
+            };
+            const msg = document.getElementById('qfMsg');
+            if (!payload.items.length) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">Add at least one line item.</div>'; return; }
+            try {
+                if (id) await apiFetch('/quotations/' + id, { method: 'PUT', body: payload });
+                else await apiFetch('/quotations', { method: 'POST', body: payload });
+            } catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; return; }
+            document.getElementById('quoFormWrap').style.display = 'none';
+            _cache.quotations = null;
+            hrmsRenderModule('invoice');
+        }
+        window.saveQuotation = saveQuotation;
+
+        async function setQuotationStatus(id, status) {
+            if (status === 'Rejected' && !confirm('Mark this quotation as Rejected?')) return;
+            try { await apiFetch('/quotations/' + id + '/status', { method: 'PUT', body: { status } }); }
+            catch (e) { alert(e.message); return; }
+            _cache.quotations = null;
+            hrmsRenderModule('invoice');
+        }
+        window.setQuotationStatus = setQuotationStatus;
+
+        async function deleteQuotation(id) {
+            if (!confirm('Delete this draft quotation?')) return;
+            try { await apiFetch('/quotations/' + id, { method: 'DELETE' }); }
+            catch (e) { alert(e.message); return; }
+            _cache.quotations = null;
+            hrmsRenderModule('invoice');
+        }
+        window.deleteQuotation = deleteQuotation;
+
+        async function convertQuotation(id) {
+            if (!confirm('Convert this quotation to an invoice? This generates a new invoice number and cannot be undone.')) return;
+            let result;
+            try { result = await apiFetch('/quotations/' + id + '/convert', { method: 'POST' }); }
+            catch (e) { alert(e.message); return; }
+            _cache.quotations = null;
+            HRMS.invoices = [...HRMS.invoices, result.invoice];
+            alert('Converted! New invoice ' + result.invoice.invoice_number + ' created.');
+            hrmsRenderModule('invoice');
+        }
+        window.convertQuotation = convertQuotation;
+
+        // ── Full Invoice (rich, direct — no quotation involved) ──────────
+        // Reuses the exact same line-item editor as the Quotation form
+        // (quoItemRowHTML/addQuoItemRow/readQuoItems/recalcQuoTotals above),
+        // scoped to its own #invfItemsBody/#invfTotalsSummary container.
+        async function showAddFullInvoice(id) {
+            const wrap = document.getElementById('invFullFormWrap');
+            if (!wrap) return;
+            hideOtherInvoiceForms('invFullFormWrap');
+            wrap.style.display = 'block';
+            let data = null;
+            if (id) {
+                try { data = await apiFetch('/invoices/' + id + '/full'); }
+                catch (e) { alert(e.message); return; }
+            }
+            const inv = data && data.invoice;
+            const settings = await loadCompanySettings();
+            wrap.innerHTML = `
+            <h4>${inv ? 'Edit' : 'New'} Full Invoice ${inv ? '— ' + escapeHTML(inv.invoice_number) : ''}</h4>
+            <h5 style="margin:0.75rem 0 0.5rem;color:#4a5568;">Invoice Information</h5>
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>Invoice Date</label><input type="date" id="if2_date" value="${escapeHTML(String((inv&&inv.date)||hr_todayStrSafe()).slice(0,10))}"></div>
+                <div class="hrms-form-field"><label>Due Date</label><input type="date" id="if2_due" value="${escapeHTML(String((inv&&inv.due)||'').slice(0,10))}"></div>
+                <div class="hrms-form-field"><label>Payment Terms</label><input id="if2_terms" value="${escapeHTML((inv&&inv.terms)||(settings&&settings.default_payment_terms)||'')}"></div>
+                <div class="hrms-form-field"><label>PO Number</label><input id="if2_pon" value="${escapeHTML(inv&&inv.po_number||'')}"></div>
+                <div class="hrms-form-field"><label>PO Date</label><input type="date" id="if2_pod" value="${escapeHTML(String((inv&&inv.po_date)||'').slice(0,10))}"></div>
+                <div class="hrms-form-field"><label>Reference Number</label><input id="if2_ref" value="${escapeHTML(inv&&inv.reference_number||'')}"></div>
+                <div class="hrms-form-field"><label>Salesperson</label><input id="if2_sales" value="${escapeHTML(inv&&inv.salesperson||'')}"></div>
+                <div class="hrms-form-field"><label>Currency</label><input id="if2_currency" value="${escapeHTML(inv&&inv.currency||'INR')}"></div>
+            </div>
+            <h5 style="margin:1.1rem 0 0.5rem;color:#4a5568;">Customer Information</h5>
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>Client Name *</label><input id="if2_client" value="${escapeHTML(inv&&inv.client||'')}"></div>
+                <div class="hrms-form-field"><label>Contact Person</label><input id="if2_contact" value="${escapeHTML(inv&&inv.contact_person||'')}"></div>
+                <div class="hrms-form-field"><label>Company Name</label><input id="if2_company" value="${escapeHTML(inv&&inv.company_name||'')}"></div>
+                <div class="hrms-form-field"><label>Mobile</label><input id="if2_mobile" value="${escapeHTML(inv&&inv.mobile||'')}"></div>
+                <div class="hrms-form-field"><label>Email</label><input type="email" id="if2_email" value="${escapeHTML(inv&&inv.email||'')}"></div>
+                <div class="hrms-form-field"><label>GSTIN</label><input id="if2_gstin" style="text-transform:uppercase;" value="${escapeHTML(inv&&inv.gstin||'')}"></div>
+                <div class="hrms-form-field"><label>PAN</label><input id="if2_pan" style="text-transform:uppercase;" value="${escapeHTML(inv&&inv.pan||'')}"></div>
+                <div class="hrms-form-field"><label>State</label><input id="if2_state" value="${escapeHTML(inv&&inv.state||(settings&&settings.home_state)||'')}"></div>
+                <div class="hrms-form-field"><label>Place of Supply</label><input id="if2_pos" value="${escapeHTML(inv&&inv.place_of_supply||(settings&&settings.home_state)||'')}" title="Decides CGST+SGST vs IGST"></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Billing Address</label><input id="if2_addr" value="${escapeHTML(inv&&inv.addr||'')}"></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Service Address</label><input id="if2_saddr" value="${escapeHTML(inv&&inv.service_address||'')}"></div>
+            </div>
+            <h5 style="margin:1.1rem 0 0.5rem;color:#4a5568;">Line Items</h5>
+            <div class="hrms-table-wrap"><table class="hrms-table" style="font-size:0.82rem;">
+                <thead><tr><th>Service</th><th>Description</th><th>HSN/SAC</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Disc %</th><th>Tax %</th><th>Tax Type</th><th>Line Total</th><th></th></tr></thead>
+                <tbody id="invfItemsBody"></tbody>
+            </table></div>
+            <button class="hrms-btn-sm" style="margin-top:0.5rem;" onclick="addQuoItemRow(null,'invfItemsBody')">+ Add Item</button>
+            <div id="invfTotalsSummary" style="max-width:360px;margin-left:auto;margin-top:0.75rem;"></div>
+            <div class="hrms-form-field" style="margin-top:0.75rem;"><label>Notes</label><textarea id="if2_notes" rows="2" style="width:100%;">${escapeHTML(inv&&inv.notes||'')}</textarea></div>
+            <div id="if2Msg" style="margin-top:0.75rem;"></div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+                <button class="hrms-btn-primary" onclick="saveFullInvoice(${inv?inv.id:'null'})">💾 Save Invoice</button>
+                <button class="hrms-btn-secondary" onclick="document.getElementById('invFullFormWrap').style.display='none'">Cancel</button>
+            </div>`;
+            const items = (data && data.items && data.items.length) ? data.items : [{}];
+            items.forEach(it => addQuoItemRow(it, 'invfItemsBody'));
+        }
+        window.showAddFullInvoice = showAddFullInvoice;
+
+        async function saveFullInvoice(id) {
+            const g = (gid) => { const el = document.getElementById(gid); return el ? el.value : ''; };
+            const payload = {
+                date: g('if2_date'), due: g('if2_due') || null, terms: g('if2_terms'),
+                po_number: g('if2_pon'), po_date: g('if2_pod') || null, reference_number: g('if2_ref'),
+                salesperson: g('if2_sales'), currency: g('if2_currency') || 'INR',
+                client: g('if2_client'), contact_person: g('if2_contact'), company_name: g('if2_company'),
+                mobile: g('if2_mobile'), email: g('if2_email'), gstin: g('if2_gstin'), pan: g('if2_pan'),
+                state: g('if2_state'), place_of_supply: g('if2_pos'), addr: g('if2_addr'), service_address: g('if2_saddr'),
+                notes: g('if2_notes'),
+                items: readQuoItems('invfItemsBody'),
+            };
+            const msg = document.getElementById('if2Msg');
+            if (!payload.items.length) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">Add at least one line item.</div>'; return; }
+            let result;
+            try {
+                result = id ? await apiFetch('/invoices/' + id + '/full', { method: 'PUT', body: payload })
+                            : await apiFetch('/invoices/full', { method: 'POST', body: payload });
+            } catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; return; }
+            document.getElementById('invFullFormWrap').style.display = 'none';
+            if (id) {
+                const idx = HRMS.invoices.findIndex(x => x.id == id);
+                if (idx > -1) HRMS.invoices[idx] = result.invoice;
+            } else {
+                HRMS.invoices = [...HRMS.invoices, result.invoice];
+            }
+            hrmsRenderModule('invoice');
+        }
+        window.saveFullInvoice = saveFullInvoice;
 
         function showAddInvoice() {
             var wrap = document.getElementById('invFormWrap');
             if (!wrap) return;
+            hideOtherInvoiceForms('invFormWrap');
             wrap.style.display = 'block';
             var today = new Date().toISOString().split('T')[0];
             wrap.innerHTML = '<h4>New Tax Invoice</h4>'
@@ -6138,9 +6524,22 @@
             hrmsRenderModule('invoice');
         }
 
-        function printInvoice(id) {
+        // Rich invoices (invoice_number set — created via the full form or a
+        // converted quotation) get the full business PDF with HSN/SAC,
+        // discount, CGST/SGST/IGST breakdown and bank details from Company
+        // Settings. Legacy/simple invoices fall through to the exact same
+        // rendering this function has always produced — nothing below the
+        // `if (inv.invoice_number)` branch changed.
+        async function printInvoice(id) {
             var inv = HRMS.invoices.find(function(i){return i.id==id;});
             if (!inv) { alert('Could not find that invoice — please refresh and try again.'); return; }
+            if (inv.invoice_number) {
+                var full;
+                try { full = await apiFetch('/invoices/' + id + '/full'); }
+                catch (e) { alert(e.message); return; }
+                openDoc(buildRichInvoiceDoc(full), 'Invoice_' + full.invoice.invoice_number + '.html');
+                return;
+            }
             var subtotal = inv.items.reduce(function(s,it){return s+(it.qty*it.rate);},0);
             var cgst  = Math.round(subtotal*0.09);
             var sgst  = Math.round(subtotal*0.09);
@@ -6236,6 +6635,189 @@
               + '</div></div></body></html>';
             openDoc(doc, 'Invoice_' + inv.id + '.html');
         }
+
+        // Shared print-document CSS, reused by the rich invoice and the
+        // quotation PDF so both match the look of the original simple
+        // invoice template above.
+        const DOC_CSS = '*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a1a;background:#fff;padding:28px;max-width:860px;margin:auto}'
+          + '.page-border{border:2px solid #1a6b6b;padding:18px;}'
+          + '.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #1a6b6b}'
+          + '.company h1{font-size:20px;color:#1a6b6b;font-weight:900}.company p{color:#555;font-size:10px;margin-top:3px;line-height:1.6}'
+          + '.inv-title{font-size:20px;font-weight:900;color:#1a6b6b;letter-spacing:3px;border:3px solid #1a6b6b;padding:5px 16px;display:inline-block;margin-bottom:8px}'
+          + '.inv-meta{font-size:10px;color:#333;line-height:1.9}'
+          + '.bill-row{display:grid;grid-template-columns:1fr 1fr;border:1px solid #bbb;margin-bottom:12px}'
+          + '.bill-box{padding:10px 12px}.bill-box:first-child{border-right:1px solid #bbb}'
+          + '.bill-head{font-weight:bold;color:#fff;background:#1a6b6b;padding:4px 12px;margin:-10px -12px 8px;font-size:10px}'
+          + '.bill-line{font-size:10px;line-height:1.9}'
+          + 'table{width:100%;border-collapse:collapse}thead tr{background:#1a6b6b;color:#fff}'
+          + 'th{padding:6px;font-size:9px;text-align:left}td{padding:6px;font-size:9px;border-bottom:1px solid #ddd}'
+          + 'tbody tr:nth-child(even){background:#f5fafa}'
+          + '.totals-box{width:300px;border:1px solid #bbb;margin-left:auto;margin-top:0}'
+          + '.tot-row{display:flex;justify-content:space-between;padding:5px 10px;border-bottom:1px solid #eee;font-size:10px}'
+          + '.tot-row.grand{background:#1a6b6b;color:#fff;font-weight:bold;font-size:12px;padding:8px 10px}'
+          + '.words-box{background:#f0fafa;border:1px solid #bbb;padding:7px 12px;font-size:10px;margin:10px 0}'
+          + '.terms-box{border:1px solid #bbb;padding:8px 12px;font-size:9.5px;color:#555;line-height:1.7;margin-top:10px}'
+          + '.section-box{border:1px solid #bbb;padding:8px 12px;font-size:9.5px;color:#333;line-height:1.6;margin-top:10px}'
+          + '.section-head{font-weight:bold;color:#1a6b6b;margin-bottom:3px;}'
+          + '.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:18px;padding-top:12px;border-top:2px solid #1a6b6b}'
+          + '.sig-line{border-top:1px solid #555;margin-top:36px;padding-top:5px;font-size:9.5px;color:#555;text-align:center}'
+          + '@media print{body{padding:0}button{display:none!important}}';
+        const PRINT_BTN = '<div style="text-align:center;margin-top:14px"><button onclick="window.print()" style="background:#1a6b6b;color:#fff;border:none;padding:10px 28px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold">Print / Save as PDF</button></div>';
+
+        function bankDetailsBoxHTML(s) {
+            const has = s && (s.bank_name || s.bank_account_no);
+            if (!has) return '';
+            return '<div class="section-box"><div class="section-head">BANK / PAYMENT DETAILS</div>'
+              + (s.bank_holder_name ? '<div>Account Name: <b>'+escapeHTML(s.bank_holder_name)+'</b></div>' : '')
+              + (s.bank_name ? '<div>Bank Name: '+escapeHTML(s.bank_name)+'</div>' : '')
+              + (s.bank_account_no ? '<div>Account Number: '+escapeHTML(s.bank_account_no)+'</div>' : '')
+              + (s.bank_ifsc ? '<div>IFSC: '+escapeHTML(s.bank_ifsc)+'</div>' : '')
+              + (s.bank_branch ? '<div>Branch: '+escapeHTML(s.bank_branch)+'</div>' : '')
+              + (s.upi_id ? '<div>UPI ID: '+escapeHTML(s.upi_id)+'</div>' : '')
+              + (s.gstin ? '<div style="margin-top:4px;">GSTIN: '+escapeHTML(s.gstin)+'</div>' : '')
+              + (s.pan ? '<div>PAN: '+escapeHTML(s.pan)+'</div>' : '')
+              + '</div>';
+        }
+        function termsBoxHTML(s, extraNotes) {
+            const lines = [];
+            if (s && s.default_terms) lines.push(escapeHTML(s.default_terms));
+            if (s && s.late_payment_terms) lines.push('Late payment: ' + escapeHTML(s.late_payment_terms));
+            if (s && s.cancellation_terms) lines.push('Cancellation: ' + escapeHTML(s.cancellation_terms));
+            if (s && s.jurisdiction) lines.push('Subject to ' + escapeHTML(s.jurisdiction) + ' jurisdiction.');
+            if (extraNotes) lines.push(escapeHTML(extraNotes));
+            if (!lines.length) return '';
+            return '<div class="terms-box"><b>Terms and Conditions:</b><br>' + lines.map((l,i)=>(i+1)+'. '+l).join('<br>') + '</div>';
+        }
+
+        function buildRichInvoiceDoc(data) {
+            const inv = data.invoice, items = data.items || [], s = data.settings || {};
+            const statusBg = ['Paid'].includes(inv.status) ? '#c6f6d5' : ['Cancelled'].includes(inv.status) ? '#fed7d7' : '#feebc8';
+            const statusCol = ['Paid'].includes(inv.status) ? '#276749' : ['Cancelled'].includes(inv.status) ? '#822727' : '#7b341e';
+            const rows = items.map((it, idx) => `<tr>
+                <td style="text-align:center">${idx+1}</td>
+                <td>${escapeHTML(it.service_name)}${it.description?'<br><span style="color:#888;">'+escapeHTML(it.description)+'</span>':''}</td>
+                <td>${escapeHTML(it.hsn_sac||'')}</td>
+                <td style="text-align:center">${Number(it.quantity)} ${escapeHTML(it.unit||'')}</td>
+                <td style="text-align:right">₹${Number(it.rate).toLocaleString()}</td>
+                <td style="text-align:right">${Number(it.discount_percent)>0?Number(it.discount_percent)+'%':'—'}</td>
+                <td style="text-align:right">${Number(it.tax_percent)}% ${escapeHTML(it.tax_type)}</td>
+                <td style="text-align:right">₹${Number(it.line_total).toLocaleString()}</td>
+            </tr>`).join('');
+
+            return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tax Invoice ${escapeHTML(inv.invoice_number)}</title><style>${DOC_CSS}</style></head>
+            <body><div class="page-border">
+            <div class="hdr"><div class="company"><h1>${escapeHTML(s.legal_name||'LeoMox IT Solutions')}</h1>
+                <p>${escapeHTML(s.office_address||s.registered_address||'')}<br>${escapeHTML(s.email||'')} | ${escapeHTML(s.phone||'')}${s.gstin?'<br>GSTIN: '+escapeHTML(s.gstin):''}</p></div>
+            <div style="text-align:right"><div class="inv-title">TAX INVOICE</div><br>
+                <div class="inv-meta"><b>Invoice No.:</b> ${escapeHTML(inv.invoice_number)}<br><b>Date:</b> ${escapeHTML(String(inv.date).slice(0,10))}<br>
+                ${inv.due?'<b>Due Date:</b> '+escapeHTML(String(inv.due).slice(0,10))+'<br>':''}
+                <b>Status:</b> <span style="background:${statusBg};color:${statusCol};padding:2px 8px;border-radius:3px;font-weight:bold;font-size:10px">${escapeHTML(inv.status)}</span></div></div></div>
+            <div class="bill-row"><div class="bill-box"><div class="bill-head">BILL TO</div>
+                <div class="bill-line"><b>${escapeHTML(inv.client)}</b></div>
+                ${inv.contact_person?'<div class="bill-line">Attn: '+escapeHTML(inv.contact_person)+'</div>':''}
+                ${inv.addr?'<div class="bill-line">'+escapeHTML(inv.addr)+'</div>':''}
+                ${inv.gstin?'<div class="bill-line"><b>GSTIN:</b> '+escapeHTML(inv.gstin)+'</div>':''}
+                ${inv.pan?'<div class="bill-line"><b>PAN:</b> '+escapeHTML(inv.pan)+'</div>':''}
+                ${inv.state?'<div class="bill-line"><b>State:</b> '+escapeHTML(inv.state)+(inv.place_of_supply?' | Place of Supply: '+escapeHTML(inv.place_of_supply):'')+'</div>':''}
+            </div><div class="bill-box"><div class="bill-head">PAYMENT DETAILS</div>
+                <div class="bill-line"><b>Terms:</b> ${escapeHTML(inv.terms||'')}</div>
+                ${inv.po_number?'<div class="bill-line"><b>PO Number:</b> '+escapeHTML(inv.po_number)+'</div>':''}
+                ${data.quotationNumber?'<div class="bill-line"><b>Reference Quotation:</b> '+escapeHTML(data.quotationNumber)+'</div>':''}
+                ${inv.salesperson?'<div class="bill-line"><b>Salesperson:</b> '+escapeHTML(inv.salesperson)+'</div>':''}
+            </div></div>
+            <table><thead><tr><th style="width:4%;">Sr.</th><th style="width:28%;">Service/Product</th><th style="width:10%;">HSN/SAC</th>
+                <th style="width:10%;">Qty</th><th style="width:12%;text-align:right;">Rate</th><th style="width:10%;text-align:right;">Discount</th>
+                <th style="width:12%;text-align:right;">Tax</th><th style="width:14%;text-align:right;">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+            <div class="totals-box">
+                <div class="tot-row"><span>Subtotal</span><span>₹${Number(inv.subtotal||0).toLocaleString()}</span></div>
+                ${Number(inv.discount_total)>0?`<div class="tot-row"><span>Discount</span><span>−₹${Number(inv.discount_total).toLocaleString()}</span></div>`:''}
+                <div class="tot-row"><span>Taxable Amount</span><span>₹${Number(inv.taxable_amount||0).toLocaleString()}</span></div>
+                ${Number(inv.cgst)>0?`<div class="tot-row"><span>CGST</span><span>₹${Number(inv.cgst).toLocaleString()}</span></div><div class="tot-row"><span>SGST</span><span>₹${Number(inv.sgst).toLocaleString()}</span></div>`:''}
+                ${Number(inv.igst)>0?`<div class="tot-row"><span>IGST</span><span>₹${Number(inv.igst).toLocaleString()}</span></div>`:''}
+                ${Number(inv.round_off)!==0?`<div class="tot-row"><span>Round Off</span><span>${Number(inv.round_off)>0?'+':''}₹${Number(inv.round_off).toLocaleString()}</span></div>`:''}
+                <div class="tot-row grand"><span>Net Amount Payable</span><span>₹${Number(inv.grand_total||0).toLocaleString()}</span></div>
+            </div>
+            <div class="words-box"><b>Amount in Words:</b> ${escapeHTML(data.amountInWords||'')}</div>
+            ${bankDetailsBoxHTML(s)}
+            ${termsBoxHTML(s, inv.notes)}
+            <div class="sig-grid"><div><div class="sig-line">Customer Signature</div></div>
+                <div><div style="font-size:10px;color:#555;text-align:center">For ${escapeHTML(s.legal_name||'LeoMox IT Solutions')}</div>
+                <div class="sig-line">Authorised Signatory</div></div></div>
+            ${PRINT_BTN}
+            </div></body></html>`;
+        }
+
+        // ── Quotation PDF ────────────────────────────────────────────────
+        async function printQuotation(id) {
+            let q, settings;
+            try {
+                q = await apiFetch('/quotations/' + id);
+                settings = await loadCompanySettings();
+            } catch (e) { alert(e.message); return; }
+            settings = settings || {};
+            const items = q.items || [];
+            const rows = items.map((it, idx) => `<tr>
+                <td style="text-align:center">${idx+1}</td>
+                <td>${escapeHTML(it.service_name)}${it.description?'<br><span style="color:#888;">'+escapeHTML(it.description)+'</span>':''}</td>
+                <td>${escapeHTML(it.hsn_sac||'')}</td>
+                <td style="text-align:center">${Number(it.quantity)} ${escapeHTML(it.unit||'')}</td>
+                <td style="text-align:right">₹${Number(it.rate).toLocaleString()}</td>
+                <td style="text-align:right">${Number(it.discount_percent)>0?Number(it.discount_percent)+'%':'—'}</td>
+                <td style="text-align:right">${Number(it.tax_percent)}% ${escapeHTML(it.tax_type)}</td>
+                <td style="text-align:right">₹${Number(it.line_total).toLocaleString()}</td>
+            </tr>`).join('');
+            const commercial = [
+                ['Scope of Work', q.scope_of_work], ['Deliverables', q.deliverables],
+                ['Implementation Timeline', q.implementation_timeline], ['Payment Schedule', q.payment_schedule],
+                ['Advance Payment', q.advance_payment_percent != null ? q.advance_payment_percent + '%' : null],
+                ['Balance Payment Terms', q.balance_payment_terms], ['Support Period', q.support_period],
+                ['Warranty / AMC', q.warranty_amc], ['Additional Charges', q.additional_charges], ['Exclusions', q.exclusions],
+            ].filter(([, v]) => v);
+
+            const doc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation ${escapeHTML(q.quotation_number)}</title><style>${DOC_CSS}</style></head>
+            <body><div class="page-border">
+            <div class="hdr"><div class="company"><h1>${escapeHTML(settings.legal_name||'LeoMox IT Solutions')}</h1>
+                <p>${escapeHTML(settings.office_address||settings.registered_address||'')}<br>${escapeHTML(settings.email||'')} | ${escapeHTML(settings.phone||'')}${settings.gstin?'<br>GSTIN: '+escapeHTML(settings.gstin):''}</p></div>
+            <div style="text-align:right"><div class="inv-title">QUOTATION</div><br>
+                <div class="inv-meta"><b>Quotation No.:</b> ${escapeHTML(q.quotation_number)}<br><b>Date:</b> ${escapeHTML(String(q.quotation_date).slice(0,10))}<br>
+                ${q.valid_until?'<b>Valid Until:</b> '+escapeHTML(String(q.valid_until).slice(0,10))+'<br>':''}
+                <span class="hrms-badge" style="background:#e6fffa;color:#1a6b6b;padding:2px 8px;border-radius:3px;font-weight:bold;font-size:10px;">${escapeHTML(q.status)}</span></div></div></div>
+            <div class="bill-row"><div class="bill-box"><div class="bill-head">QUOTATION FOR</div>
+                <div class="bill-line"><b>${escapeHTML(q.client_name)}</b></div>
+                ${q.contact_person?'<div class="bill-line">Attn: '+escapeHTML(q.contact_person)+'</div>':''}
+                ${q.billing_address?'<div class="bill-line">'+escapeHTML(q.billing_address)+'</div>':''}
+                ${q.gstin?'<div class="bill-line"><b>GSTIN:</b> '+escapeHTML(q.gstin)+'</div>':''}
+                ${q.state?'<div class="bill-line"><b>State:</b> '+escapeHTML(q.state)+'</div>':''}
+            </div><div class="bill-box"><div class="bill-head">QUOTATION DETAILS</div>
+                <div class="bill-line"><b>Payment Terms:</b> ${escapeHTML(q.payment_terms||'')}</div>
+                ${q.reference_number?'<div class="bill-line"><b>Reference No.:</b> '+escapeHTML(q.reference_number)+'</div>':''}
+                ${q.salesperson?'<div class="bill-line"><b>Salesperson:</b> '+escapeHTML(q.salesperson)+'</div>':''}
+                ${q.delivery_timeline?'<div class="bill-line"><b>Delivery:</b> '+escapeHTML(q.delivery_timeline)+'</div>':''}
+            </div></div>
+            <table><thead><tr><th style="width:4%;">Sr.</th><th style="width:28%;">Service/Product</th><th style="width:10%;">HSN/SAC</th>
+                <th style="width:10%;">Qty</th><th style="width:12%;text-align:right;">Rate</th><th style="width:10%;text-align:right;">Discount</th>
+                <th style="width:12%;text-align:right;">Tax</th><th style="width:14%;text-align:right;">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+            <div class="totals-box">
+                <div class="tot-row"><span>Subtotal</span><span>₹${Number(q.subtotal||0).toLocaleString()}</span></div>
+                ${Number(q.discount_total)>0?`<div class="tot-row"><span>Discount</span><span>−₹${Number(q.discount_total).toLocaleString()}</span></div>`:''}
+                <div class="tot-row"><span>Taxable Amount</span><span>₹${Number(q.taxable_amount||0).toLocaleString()}</span></div>
+                ${Number(q.cgst)>0?`<div class="tot-row"><span>CGST</span><span>₹${Number(q.cgst).toLocaleString()}</span></div><div class="tot-row"><span>SGST</span><span>₹${Number(q.sgst).toLocaleString()}</span></div>`:''}
+                ${Number(q.igst)>0?`<div class="tot-row"><span>IGST</span><span>₹${Number(q.igst).toLocaleString()}</span></div>`:''}
+                <div class="tot-row grand"><span>Grand Total</span><span>₹${Number(q.grand_total||0).toLocaleString()}</span></div>
+            </div>
+            <div class="words-box"><b>Amount in Words:</b> ${escapeHTML(numberToWords(Number(q.grand_total||0)))} Rupees Only</div>
+            ${commercial.length?'<div class="section-box"><div class="section-head">COMMERCIAL TERMS</div>'+commercial.map(([k,v])=>'<div><b>'+k+':</b> '+escapeHTML(v)+'</div>').join('')+'</div>':''}
+            ${q.notes?'<div class="section-box"><div class="section-head">NOTES</div>'+escapeHTML(q.notes)+'</div>':''}
+            ${bankDetailsBoxHTML(settings)}
+            ${termsBoxHTML(settings, q.cancellation_terms ? 'Cancellation: ' + q.cancellation_terms : null)}
+            <div class="sig-grid"><div><div style="font-size:10px;color:#555;">Customer Acceptance</div><div class="sig-line">Signature &amp; Date</div></div>
+                <div><div style="font-size:10px;color:#555;text-align:center">For ${escapeHTML(settings.legal_name||'LeoMox IT Solutions')}</div>
+                <div class="sig-line">Authorised Signatory</div></div></div>
+            ${PRINT_BTN}
+            </div></body></html>`;
+            openDoc(doc, 'Quotation_' + q.quotation_number + '.html');
+        }
+        window.printQuotation = printQuotation;
 
         window.showAddInvoice=showAddInvoice; window.addInvItem=addInvItem; window.saveInvoice=saveInvoice; window.toggleInvStatus=toggleInvStatus; window.printInvoice=printInvoice;
 
@@ -6501,7 +7083,7 @@
 
         function renderSettings() {
             const u = HRMS.currentUser || {};
-            if (u.role === 'admin') setTimeout(loadAuditLog, 0);
+            if (u.role === 'admin') { setTimeout(loadAuditLog, 0); setTimeout(loadBillingSettings, 0); }
             return `
             <div class="hrms-card">
                 <h4>Change Password</h4>
@@ -6518,6 +7100,14 @@
                 <h4>Company Info</h4>
                 <p style="color:#9aa5b4;font-size:0.88rem;margin-bottom:0.5rem;">Managed under the <b>Website</b> tab, which controls what's shown to visitors on the public site.</p>
             </div>
+            ${u.role==='admin'?`<div class="hrms-card" style="margin-top:1.2rem;" id="billingSettingsCard">
+                <h4>Company Settings — Billing</h4>
+                <p style="color:#9aa5b4;font-size:0.88rem;margin-bottom:0.75rem;">
+                    Legal/bank details and invoice numbering used on every invoice and quotation — set these once here
+                    instead of typing them on each document.
+                </p>
+                <div id="billingSettingsWrap"><p style="color:#718096;">Loading…</p></div>
+            </div>`:''}
             ${u.role==='admin'?`<div class="hrms-card" style="margin-top:1.2rem;" id="auditCard">
                 <div class="hrms-toolbar" style="margin-bottom:0.5rem;">
                     <h4 style="margin:0;">Audit Log</h4>
@@ -6546,6 +7136,90 @@
                 </tr>`).join('') + '</tbody></table></div>';
         }
         window.loadAuditLog = loadAuditLog;
+
+        // ── Company Settings (Billing) — single source of truth for company/
+        // bank/GST/numbering details used by every invoice and quotation.
+        async function loadCompanySettings(force) {
+            if (_cache.companySettings && !force) return _cache.companySettings;
+            try { _cache.companySettings = await apiFetch('/company-settings'); }
+            catch (e) { _cache.companySettings = null; }
+            return _cache.companySettings;
+        }
+
+        async function loadBillingSettings() {
+            const wrap = document.getElementById('billingSettingsWrap');
+            if (!wrap) return;
+            const s = await loadCompanySettings(true);
+            if (!s) { wrap.innerHTML = '<div class="cp-error" style="display:block;">Could not load company settings.</div>'; return; }
+            const f = (id, max) => `id="${id}"${max ? ' maxlength="' + max + '"' : ''}`;
+            wrap.innerHTML = `
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>Legal / Business Name *</label><input ${f('bs_legal')} value="${escapeHTML(s.legal_name||'')}"></div>
+                <div class="hrms-form-field"><label>GSTIN</label><input ${f('bs_gstin',15)} style="text-transform:uppercase;" value="${escapeHTML(s.gstin||'')}"></div>
+                <div class="hrms-form-field"><label>PAN</label><input ${f('bs_pan',10)} style="text-transform:uppercase;" value="${escapeHTML(s.pan||'')}"></div>
+                <div class="hrms-form-field"><label>CIN (if applicable)</label><input ${f('bs_cin')} value="${escapeHTML(s.cin||'')}"></div>
+                <div class="hrms-form-field"><label>Email</label><input type="email" ${f('bs_email')} value="${escapeHTML(s.email||'')}"></div>
+                <div class="hrms-form-field"><label>Phone</label><input ${f('bs_phone')} value="${escapeHTML(s.phone||'')}"></div>
+                <div class="hrms-form-field"><label>Website</label><input ${f('bs_website')} value="${escapeHTML(s.website||'')}"></div>
+                <div class="hrms-form-field"><label>Home State (for GST)</label><input ${f('bs_home_state')} value="${escapeHTML(s.home_state||'')}" title="Used to decide CGST+SGST vs IGST: matches the buyer's state = intra-state."></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Registered Address</label><input ${f('bs_reg_addr')} value="${escapeHTML(s.registered_address||'')}"></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Office Address</label><input ${f('bs_office_addr')} value="${escapeHTML(s.office_address||'')}"></div>
+            </div>
+            <h5 style="margin:1.25rem 0 0.5rem;color:#4a5568;">Bank Details <small style="color:#a0aec0;">(printed on every invoice automatically)</small></h5>
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>Account Holder Name</label><input ${f('bs_bank_holder')} value="${escapeHTML(s.bank_holder_name||'')}"></div>
+                <div class="hrms-form-field"><label>Bank Name</label><input ${f('bs_bank_name')} value="${escapeHTML(s.bank_name||'')}"></div>
+                <div class="hrms-form-field"><label>Account Number</label><input ${f('bs_bank_acct')} value="${escapeHTML(s.bank_account_no||'')}"></div>
+                <div class="hrms-form-field"><label>IFSC Code</label><input ${f('bs_bank_ifsc')} style="text-transform:uppercase;" value="${escapeHTML(s.bank_ifsc||'')}"></div>
+                <div class="hrms-form-field"><label>Branch</label><input ${f('bs_bank_branch')} value="${escapeHTML(s.bank_branch||'')}"></div>
+                <div class="hrms-form-field"><label>Account Type</label><select id="bs_bank_type">${opts(['Savings','Current'], s.bank_account_type||'')}</select></div>
+                <div class="hrms-form-field"><label>UPI ID</label><input ${f('bs_upi')} value="${escapeHTML(s.upi_id||'')}"></div>
+            </div>
+            <h5 style="margin:1.25rem 0 0.5rem;color:#4a5568;">Document Numbering</h5>
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>Invoice Prefix</label><input ${f('bs_inv_prefix',10)} value="${escapeHTML(s.invoice_prefix||'INV')}"></div>
+                <div class="hrms-form-field"><label>Next Invoice No.</label><input type="number" min="1" ${f('bs_inv_next')} value="${s.invoice_next_number||1}"></div>
+                <div class="hrms-form-field"><label>Quotation Prefix</label><input ${f('bs_qtn_prefix',10)} value="${escapeHTML(s.quotation_prefix||'QTN')}"></div>
+                <div class="hrms-form-field"><label>Next Quotation No.</label><input type="number" min="1" ${f('bs_qtn_next')} value="${s.quotation_next_number||1}"></div>
+                <div class="hrms-form-field"><label>Number Digits (padding)</label><input type="number" min="1" max="10" ${f('bs_num_digits')} value="${s.number_digits||4}"></div>
+                <div class="hrms-form-field"><label>Default CGST %</label><input type="number" step="0.01" min="0" max="100" ${f('bs_cgst')} value="${s.default_cgst_rate!=null?s.default_cgst_rate:9}"></div>
+                <div class="hrms-form-field"><label>Default SGST %</label><input type="number" step="0.01" min="0" max="100" ${f('bs_sgst')} value="${s.default_sgst_rate!=null?s.default_sgst_rate:9}"></div>
+                <div class="hrms-form-field"><label>Default IGST %</label><input type="number" step="0.01" min="0" max="100" ${f('bs_igst')} value="${s.default_igst_rate!=null?s.default_igst_rate:18}"></div>
+            </div>
+            <h5 style="margin:1.25rem 0 0.5rem;color:#4a5568;">Default Terms & Conditions</h5>
+            <div class="hrms-form-grid">
+                <div class="hrms-form-field"><label>Default Payment Terms</label><input ${f('bs_pay_terms')} value="${escapeHTML(s.default_payment_terms||'')}"></div>
+                <div class="hrms-form-field"><label>Jurisdiction</label><input ${f('bs_jurisdiction')} placeholder="e.g. Courts of Guntur, AP" value="${escapeHTML(s.jurisdiction||'')}"></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>General Service Terms</label><textarea id="bs_terms" rows="2" style="width:100%;">${escapeHTML(s.default_terms||'')}</textarea></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Late Payment Terms</label><textarea id="bs_late_terms" rows="2" style="width:100%;">${escapeHTML(s.late_payment_terms||'')}</textarea></div>
+                <div class="hrms-form-field" style="grid-column:1/-1;"><label>Cancellation Terms</label><textarea id="bs_cancel_terms" rows="2" style="width:100%;">${escapeHTML(s.cancellation_terms||'')}</textarea></div>
+            </div>
+            <div id="billingSettingsMsg" style="margin-top:0.75rem;"></div>
+            <button class="hrms-btn-primary" style="margin-top:0.5rem;" onclick="saveBillingSettings()">💾 Save Company Settings</button>`;
+        }
+
+        async function saveBillingSettings() {
+            const g = (id) => { const el = document.getElementById(id); return el ? el.value : undefined; };
+            const payload = {
+                legal_name: g('bs_legal'), gstin: g('bs_gstin'), pan: g('bs_pan'), cin: g('bs_cin'),
+                email: g('bs_email'), phone: g('bs_phone'), website: g('bs_website'), home_state: g('bs_home_state'),
+                registered_address: g('bs_reg_addr'), office_address: g('bs_office_addr'),
+                bank_holder_name: g('bs_bank_holder'), bank_name: g('bs_bank_name'), bank_account_no: g('bs_bank_acct'),
+                bank_ifsc: g('bs_bank_ifsc'), bank_branch: g('bs_bank_branch'), bank_account_type: g('bs_bank_type'), upi_id: g('bs_upi'),
+                invoice_prefix: g('bs_inv_prefix'), quotation_prefix: g('bs_qtn_prefix'),
+                invoice_next_number: parseInt(g('bs_inv_next'), 10) || 1, quotation_next_number: parseInt(g('bs_qtn_next'), 10) || 1,
+                number_digits: parseInt(g('bs_num_digits'), 10) || 4,
+                default_cgst_rate: parseFloat(g('bs_cgst')) || 0, default_sgst_rate: parseFloat(g('bs_sgst')) || 0, default_igst_rate: parseFloat(g('bs_igst')) || 0,
+                default_payment_terms: g('bs_pay_terms'), jurisdiction: g('bs_jurisdiction'),
+                default_terms: g('bs_terms'), late_payment_terms: g('bs_late_terms'), cancellation_terms: g('bs_cancel_terms'),
+            };
+            const msg = document.getElementById('billingSettingsMsg');
+            try {
+                _cache.companySettings = await apiFetch('/company-settings', { method: 'PUT', body: payload });
+            } catch (e) { if (msg) msg.innerHTML = '<div class="cp-error" style="display:block;">'+escapeHTML(e.message)+'</div>'; return; }
+            if (msg) msg.innerHTML = '<div style="color:#48bb78;font-size:0.88rem;">✅ Saved.</div>';
+        }
+        window.saveBillingSettings = saveBillingSettings;
 
         async function changeOwnPassword() {
             const currentPassword = document.getElementById('cpw_current').value;

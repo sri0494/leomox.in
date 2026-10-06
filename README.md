@@ -426,3 +426,176 @@ explanation now is that the deployed server isn't running the latest
 `routes/invoices.routes.js` yet — worth confirming the Render deploy
 picked up this version, and checking the browser console / Network tab
 for the actual PUT request's response on a click.
+
+## Quotation & Invoice Business Module (this pass)
+
+A full quotation-to-invoice workflow with centralized company/bank settings
+and server-authoritative GST math, built on top of the existing simple
+Invoice module **without changing any of its existing behavior**.
+
+### Files changed / added
+**New:**
+- `migrate_v3.sql` — new tables + additive invoice columns (see below)
+- `utils/billing.js` — the GST calculation engine (pure, unit-tested)
+- `routes/quotations.routes.js` — quotation CRUD, status workflow, convert
+- `routes/companySettings.routes.js` — GET/PUT the singleton settings row
+- `tests/billing.test.js` (14 tests), `tests/quotations.test.js` (18 tests)
+
+**Modified (additive only):**
+- `routes/invoices.routes.js` — 4 new routes appended at the end of the
+  file; the original `GET/POST/PUT/DELETE /api/invoices[/:id]` handlers
+  are byte-for-byte unchanged above them
+- `server.js` — 2 new `app.use()` mount lines
+- `scripts/migrate.js` — now also applies `migrate_v3.sql`
+- `package.json` — `npm test` now also runs the two new test files
+- `public/index.html` — see "Frontend" below; the original invoice
+  form/table/print function are unmodified, only extended
+
+### Database migrations (`migrate_v3.sql`, run via `npm run db:migrate`)
+- **`company_settings`** — one-row table (id=1): legal/bank/GST info,
+  invoice & quotation number prefixes/counters, default CGST/SGST/IGST
+  rates, default terms & conditions. Auto-seeded with sensible defaults.
+- **`quotations`** + **`quotation_items`** — full quotation header and
+  line items, matching the spec's field list exactly.
+- **`invoices`** — 22 new nullable columns added (`invoice_number`,
+  `quotation_id`, customer/PO/salesperson fields, and the GST totals
+  `subtotal`/`discount_total`/`taxable_amount`/`cgst`/`sgst`/`igst`/
+  `round_off`/`grand_total`). The existing `items` JSONB column, its data,
+  and every existing row are untouched. The `status` CHECK constraint is
+  widened to add `Draft/Sent/Viewed/Partially Paid` alongside the four
+  values already in use.
+- **`invoice_items`** — rich line items, parallel to the legacy `items`
+  JSONB. Only populated for invoices created via the new full form or a
+  quotation conversion; a legacy simple invoice has no rows here and keeps
+  working entirely off its `items` JSONB exactly as before.
+
+### API endpoints
+**New:**
+| Method | Path | Notes |
+|---|---|---|
+| GET/PUT | `/api/company-settings` | GET: admin+manager · PUT: admin only |
+| GET | `/api/quotations` / `/api/quotations/:id` | admin+manager |
+| POST | `/api/quotations` | creates a Draft; server computes all totals |
+| PUT | `/api/quotations/:id` | Draft only — locked once Sent or further |
+| PUT | `/api/quotations/:id/status` | enforces the status workflow (admin can force) |
+| DELETE | `/api/quotations/:id` | Draft only |
+| POST | `/api/quotations/:id/convert` | Accepted → new Invoice; quotation flips to Converted |
+| GET | `/api/invoices/:id/full` | invoice + rich items + company settings + amount-in-words |
+| POST | `/api/invoices/full` | create a rich invoice directly (no quotation) |
+| PUT | `/api/invoices/:id/full` | edit a rich invoice; locked once Paid/Cancelled |
+| PUT | `/api/invoices/:id/status` | the widened 8-value status set |
+
+**Unchanged:** every existing `/api/invoices` route (confirmed via two
+explicit regression tests in `tests/quotations.test.js` that exercise the
+original simple create and Mark Paid toggle through the untouched code path).
+
+### Frontend pages/components added
+All inside the existing **Invoices** tab (no new nav entry, no new
+permission — reuses the existing admin+manager `invoice` permission):
+- **"+ New Quotation"** button next to "+ New Invoice"
+- A **Quotations** section below the existing invoice table: list with
+  status badges, and status-appropriate actions (Edit/Mark Sent/Delete on
+  Draft; Accepted/Rejected on Sent; Convert to Invoice on Accepted)
+- The **Quotation form**: all three field groups from the spec (Quotation
+  Details, Customer Details, Line Items) plus the full Commercial
+  Information section (scope of work, deliverables, payment schedule,
+  warranty/AMC, etc.), with a live-recalculating line-items editor
+  (add/remove rows, per-line discount %/tax %/tax type) and a totals
+  preview — the preview is cosmetic only; the server recomputes and stores
+  the authoritative figures on save
+- **Company Settings → Billing** card under Settings (admin only): company
+  info, bank details, invoice/quotation numbering, default GST rates and terms
+- The existing invoice table now shows the real `invoice_number` (e.g.
+  `INV-2026-0001`) and a "from QTN" badge for converted invoices, and
+  switches its Amount/GST/Total columns to the server-computed figures for
+  rich invoices while legacy invoices display exactly as before
+
+### PDF changes
+- **Quotation PDF** (`printQuotation`) — new, matching the spec's layout:
+  header with company info, customer details, line items with HSN/SAC and
+  discount/tax columns, commercial terms, totals with amount in words,
+  bank details (from Company Settings), terms & conditions, and a
+  customer-acceptance/signature block.
+- **Invoice PDF** (`printInvoice`) — now branches: a legacy invoice (no
+  `invoice_number`) renders through the *exact same code as before*; a
+  rich invoice renders a new, fuller layout with HSN/SAC, discount, and a
+  real CGST/SGST/IGST breakdown, bank details and terms pulled from
+  Company Settings instead of being hard-coded, and a "Reference
+  Quotation" line when converted from one.
+
+### Tests added
+32 new tests, all passing (`npm test` runs 79 total across every suite):
+- `tests/billing.test.js` (14) — the GST engine: intra-/inter-state tax
+  split, discount-by-percent vs discount-by-amount, Exempt/None handling,
+  rate defaulting, validation (bad qty/rate/discount/tax rejected, not
+  silently clamped), multi-item rounding reconciliation, document-number
+  formatting, Indian-numbering amount-in-words.
+- `tests/quotations.test.js` (18) — route-level: role gating (manager-tier
+  only, not HR), status-transition enforcement, **server ignores a spoofed
+  `grand_total` in the request body and stores its own computed value**,
+  edit/delete locked outside Draft, full convert-to-invoice flow, and two
+  explicit regression tests proving the original simple invoice endpoints
+  are byte-for-byte unaffected.
+
+### Environment variables required
+**None.** Everything uses the existing `DATABASE_URL`/`JWT_SECRET` setup;
+no new service, API key, or config value is needed.
+
+### Migration / run instructions
+```bash
+npm install          # no new dependencies were added
+npm run db:migrate    # applies migrate_v3.sql (and re-applies v1/v2 — both no-ops by now)
+npm test              # 79 tests, no live DB needed
+npm run dev
+```
+Then, as **admin**: Settings → Company Settings — Billing, and fill in at
+least the legal name, GSTIN, and bank details before issuing real
+documents (everything works with the seeded defaults in the meantime, just
+with blank/placeholder bank details on the PDF until set).
+
+### Known scope decisions (read before assuming something's missing)
+- **"Send to Customer"** is implemented as the **Mark Sent** status action,
+  not actual email delivery — there's no SMTP-sending of the PDF itself.
+  Wiring the existing `nodemailer` setup (already used for contact-form
+  notifications) to email the generated document as an attachment would be
+  the natural next step if needed.
+- **"Preview"** and **"Download PDF"** are the same action (**Print**),
+  matching how the original invoice already worked: it opens the formatted
+  document in a new tab (the preview) with its own "Print / Save as PDF"
+  button, rather than a separate preview modal plus a separate download.
+- Quotation **editing is Draft-only** by design (rule: a quotation that's
+  already been shown to a customer shouldn't silently change); Rejected/
+  Expired quotations can be moved back to Draft to revise and resend.
+- I was not able to generate a real quotation/invoice against a live
+  database in this sandbox (no network access here) — the 79 passing tests
+  cover the calculation engine and every route's logic against a fake DB,
+  but a first real run-through (create quotation → accept → convert →
+  print both PDFs) after deploying is still worth doing deliberately.
+
+## Follow-up fix: direct Full Invoice creation (same pass, continued)
+
+Spotted a gap against the spec right after the above: the backend's
+`POST /api/invoices/full` and `PUT /api/invoices/:id/full` were built and
+tested, but nothing in the UI actually reached them — only converting a
+quotation produced a rich invoice. Added:
+
+- **"+ New Full Invoice"** button next to "+ New Quotation", opening the
+  rich invoice form (Invoice Information, Customer Information, the same
+  line-items editor) directly, with no quotation required.
+- An **✏️ Edit** action on rich invoices in the table (previously they
+  could only be printed or toggled Paid/Pending).
+
+Reused the Quotation form's line-items editor for this rather than writing
+a second copy — the GST math and fields are identical for both document
+types. Doing that surfaced a real scoping bug worth calling out: the editor
+is driven by a shared CSS class (`.quo-item-row`) and a couple of its
+functions (`recalcQuoTotals`, `readQuoItems`) originally fell back to
+scanning the *entire document* when called without an explicit container
+id. Since both forms can end up in the DOM at once (closing a form only
+hides it with `display:none`, it doesn't remove its content), a bare call
+from one form's inline `oninput` handler could silently sum in rows
+belonging to the *other* form. Fixed by having every row's inline handler
+resolve its own tbody id via `this.closest('tbody').id` rather than relying
+on a fallback, and verified by extracting the actual functions and running
+them against a mock DOM with both containers populated simultaneously —
+each now correctly totals only its own rows regardless of what else is open.

@@ -10,7 +10,7 @@ const path = require('path');
 const { sql } = require('../db');
 const { splitSql } = require('../utils/sqlsplit');
 
-const FILES = ['schema.sql', 'migrate.sql', 'migrate_v2.sql'];
+const FILES = ['schema.sql', 'migrate.sql', 'migrate_v2.sql', 'migrate_v3.sql'];
 
 // neon() >= 1.0 requires sql.query(text); 0.9.x accepts sql(text).
 const run = (text) => (typeof sql.query === 'function' ? sql.query(text) : sql(text));
